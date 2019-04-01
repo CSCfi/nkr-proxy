@@ -1,4 +1,5 @@
-from nkr_proxy import app
+
+from nkr_proxy.proxy_app import app
 
 if __name__ == "__main__":
     app.run()
