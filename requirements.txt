@@ -1,5 +1,6 @@
 Flask>=1.0.2
 gunicorn>=19.9.0
+ipdb>=0.12
 pur>=5.2.1
 pytest>=4.4.0
 requests>=2.21.0
