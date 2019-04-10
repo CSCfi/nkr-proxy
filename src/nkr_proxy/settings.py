@@ -5,6 +5,8 @@ NKR_PROXY_CONF_VARS = (
     'DEBUG',
     'INDEX_URL',
     'INDEX_NAME',
+    'INDEX_USERNAME',
+    'INDEX_PASSWORD',
     'LOG_LEVEL',
     'REMS_API_KEY',
     'REMS_URL',

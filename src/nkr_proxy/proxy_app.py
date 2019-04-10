@@ -134,6 +134,7 @@ def search_index(entitlements, search_query):
         response = http_request(
             '%s/%s/%s' % (settings.INDEX_URL, settings.INDEX_NAME, uri),
             json=search_query,
+            auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
         )
     except HttpException:
         raise
