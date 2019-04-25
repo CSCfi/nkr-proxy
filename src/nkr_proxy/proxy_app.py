@@ -13,6 +13,9 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 
 
+LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
+
+
 @app.before_request
 def before_request():
     g.request_start_time = time()
@@ -68,12 +71,18 @@ def index_search():
     if search_query is None:
         raise BadRequest('search query is required')
 
-    entitlements = get_rems_entitlements(user_id)
+    if settings.DEBUG and 'debug_entitlements' in search_query:
+        entitlements = search_query.pop('debug_entitlements')
+        logger.debug('Using debug_entitlements: %r' % entitlements)
+    else:
+        entitlements = get_rems_entitlements(user_id)
 
     if not entitlements:
         raise Forbidden('user has no entitlements')
 
-    index_results = search_index(entitlements, search_query)
+    permission_query = generate_permission_query(entitlements)
+
+    index_results = search_index(entitlements, search_query, permission_query)
 
     return make_response(jsonify(index_results), 200)
 
@@ -118,21 +127,44 @@ def get_rems_entitlements(user_id):
     return [ ent['resource'] for ent in entitlements ]
 
 
-def search_index(entitlements, search_query):
+def generate_permission_query(entitlements):
     """
-    Augment original query to index to only target particular permitted
-    documents according to entitlements, and execute search to index.
+    Generate a query to augment the original query to index, to only target
+    particular permitted documents according to entitlements.
+    """
+    for ent in entitlements:
+        if ent.endswith('::10'):
+            break
+    else:
+        raise Forbidden('no access to level 10 metadata')
+
+    # level 10 access only
+    uri = f'query?json.fields="id,{LEVEL_RESTRICTION_FIELD}"&json.filter="{LEVEL_RESTRICTION_FIELD}:10"'
+
+    # access per document & level, levels 20-30
+    # escaped_entitlements = [ s.replace(':', '\\\:').replace('-', '\\\-') for s in entitlements ]
+    # query_entitlements = '%20OR%20id:'.join(escaped_entitlements)
+    # uri = 'query?json.fields="id,level"&json.filter="level:10%%20OR%%20id:%s"' % query_entitlements
+
+    # ^ json.filter syntax, cleaned up:
+    # json.filter="level:10%%20OR%%20id:first_id%20OR%20id:second_id
+    # json.filter="level:10    OR    id:first_id   OR   id:second_id
+    return uri
+
+
+def search_index(entitlements, search_query, permission_query):
+    """
+    Execute search to index.
     """
     logger.debug('Searching index...')
-    escaped_entitlements = [ s.replace(':', '\\\:').replace('-', '\\\-') for s in entitlements ]
-    uri = 'query?json.fields="id"&json.filter="id:%s"' % '%20OR%20id:'.join(escaped_entitlements)
 
-    # ^ json.filter syntax, cleaned up, is:
-    # json.filter="id:first_id%20OR%20id:second_id
-    # json.filter="id:first_id   OR   id:second_id
+    full_index_url = '%s/%s/%s' % (settings.INDEX_URL, settings.INDEX_NAME, permission_query)
+
+    logger.debug(full_index_url)
+
     try:
         response = http_request(
-            '%s/%s/%s' % (settings.INDEX_URL, settings.INDEX_NAME, uri),
+            full_index_url,
             json=search_query,
             auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
         )
@@ -149,7 +181,10 @@ def search_index(entitlements, search_query):
 
         # filter out all results that are not permitted by the entitlements.
         # an additional measure, since the query should already take care of it.
-        filtered_results = [ r for r in resp_json['response']['docs'] if r['id'] in entitlements ]
+        filtered_results = [
+            doc for doc in resp_json['response']['docs']
+            if doc[LEVEL_RESTRICTION_FIELD] == '10' or doc['id'] in entitlements
+        ]
 
         if len(filtered_results) != len(resp_json['response']['docs']):
             # if it so happens that the results differ, we probably want to know about it...
@@ -165,9 +200,9 @@ def search_index(entitlements, search_query):
     return resp_json
 
 
-def http_request(*args, **kwargs):
+def http_request(*args, method='get', **kwargs):
     try:
-        response = requests.get(*args, **kwargs)
+        response = getattr(requests, method)(*args, **kwargs)
     except Exception:
         logger.exception('HTTP request failed')
         raise
