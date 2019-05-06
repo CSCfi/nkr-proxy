@@ -75,3 +75,11 @@ class ServiceNotAvailable(HttpException):
     '''
     status_code = 503
     message = 'service not available'
+
+
+class ConfigurationError(HttpException):
+    '''
+    The proxy has been improperly configured.
+    '''
+    status_code = 500
+    message = 'service not available'

@@ -49,8 +49,13 @@ def error_handler_main(error):
     return response
 
 
-@app.route("/api/v1/index_search")
-def index_search():
+@app.route('/api/v1/index_search')
+def index_search_root(search_handler=None):
+    return make_response('you are probably looking for /api/v1/index_search/<search_handler>', 200)
+
+
+@app.route('/api/v1/index_search/<path:search_handler>')
+def index_search(search_handler=None):
     """
     Entrypoint for searching index withing the limits for entitlements
     from entitlement management system.
@@ -63,16 +68,16 @@ def index_search():
     logger.debug('Begin index_search')
 
     user_id = request.headers.get('x-user-id', None)
-    search_query = request.json
+    query_string = request.query_string.decode('utf-8')
 
     if user_id is None:
         raise BadRequest('header x-user-id is required')
 
-    if search_query is None:
+    if not query_string:
         raise BadRequest('search query is required')
 
-    if settings.DEBUG and 'debug_entitlements' in search_query:
-        entitlements = search_query.pop('debug_entitlements')
+    if settings.DEBUG and 'debug_entitlements' in request.json:
+        entitlements = request.json.pop('debug_entitlements')
         logger.debug('Using debug_entitlements: %r' % entitlements)
     else:
         entitlements = get_rems_entitlements(user_id)
@@ -80,9 +85,9 @@ def index_search():
     if not entitlements:
         raise Forbidden('user has no entitlements')
 
-    permission_query = generate_permission_query(entitlements)
+    search_query = generate_permissioned_query('%s?%s' % (search_handler, query_string), entitlements)
 
-    index_results = search_index(entitlements, search_query, permission_query)
+    index_results = search_index(entitlements, search_query)
 
     return make_response(jsonify(index_results), 200)
 
@@ -127,11 +132,12 @@ def get_rems_entitlements(user_id):
     return [ ent['resource'] for ent in entitlements ]
 
 
-def generate_permission_query(entitlements):
+def generate_permissioned_query(original_query, entitlements):
     """
     Generate a query to augment the original query to index, to only target
     particular permitted documents according to entitlements.
     """
+    logger.debug('Adding entitlements to query...')
     for ent in entitlements:
         if ent.endswith('::10'):
             break
@@ -139,39 +145,35 @@ def generate_permission_query(entitlements):
         raise Forbidden('no access to level 10 metadata')
 
     # level 10 access only
-    uri = f'query?json.fields="id,{LEVEL_RESTRICTION_FIELD}"&json.filter="{LEVEL_RESTRICTION_FIELD}:10"'
+    permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
+    search_query = '%s&%s' % (original_query, permission_query)
 
-    # access per document & level, levels 20-30
-    # escaped_entitlements = [ s.replace(':', '\\\:').replace('-', '\\\-') for s in entitlements ]
-    # query_entitlements = '%20OR%20id:'.join(escaped_entitlements)
-    # uri = 'query?json.fields="id,level"&json.filter="level:10%%20OR%%20id:%s"' % query_entitlements
-
-    # ^ json.filter syntax, cleaned up:
-    # json.filter="level:10%%20OR%%20id:first_id%20OR%20id:second_id
-    # json.filter="level:10    OR    id:first_id   OR   id:second_id
-    return uri
+    logger.debug('Entitlements added: %s' % permission_query)
+    return search_query
 
 
-def search_index(entitlements, search_query, permission_query):
+def search_index(entitlements, search_query):
     """
     Execute search to index.
     """
     logger.debug('Searching index...')
 
-    full_index_url = '%s/%s/%s' % (settings.INDEX_URL, settings.INDEX_NAME, permission_query)
+    full_index_url = '%s/%s/%s' % (settings.INDEX_URL, settings.INDEX_NAME, search_query)
 
     logger.debug(full_index_url)
 
     try:
         response = http_request(
             full_index_url,
-            json=search_query,
             auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
         )
     except HttpException:
         raise
     except Exception as e:
         raise ServiceNotAvailable('index: %r' % e)
+
+    logger.debug('Search successful')
+    logger.debug('Validating results against entitlements...')
 
     resp_json = response.json()
 
@@ -183,7 +185,7 @@ def search_index(entitlements, search_query, permission_query):
         # an additional measure, since the query should already take care of it.
         filtered_results = [
             doc for doc in resp_json['response']['docs']
-            if doc[LEVEL_RESTRICTION_FIELD] == '10' or doc['id'] in entitlements
+            # if doc[LEVEL_RESTRICTION_FIELD] == '10' or doc['id'] in entitlements
         ]
 
         if len(filtered_results) != len(resp_json['response']['docs']):
@@ -201,11 +203,19 @@ def search_index(entitlements, search_query, permission_query):
 
 
 def http_request(*args, method='get', **kwargs):
+    if settings.DEBUG:
+        kwargs['verify'] = False
+        logger.debug('HTTP request begin with data:')
+        # logger.debug('args: %r' % args)
+        # logger.debug('kwargs: %r' % kwargs)
+
     try:
         response = getattr(requests, method)(*args, **kwargs)
     except Exception:
         logger.exception('HTTP request failed')
         raise
+
+    logger.debug('HTTP request completed with code: %d' % response.status_code)
 
     if response.status_code != 200:
         requested_host = response.request.url[:-len(response.request.path_url)]

@@ -1,4 +1,10 @@
+import logging
 import os
+
+from nkr_proxy.exceptions import ConfigurationError
+
+
+logger = logging.getLogger(__name__)
 
 
 class Settings():
@@ -16,8 +22,18 @@ class Settings():
     )
 
     def __init__(self):
+
         for env_var in self.NKR_PROXY_CONF_VARS:
             setattr(self, env_var, os.environ.get(env_var, None))
+
+        if self.DEBUG in ('1', 'true'):
+            self.DEBUG = True
+        elif self.DEBUG in ('0', 'false'):
+            self.DEBUG = False
+        else:
+            raise ConfigurationError(
+                'DEBUG value must be one of: 1, 0, "true", "false". Given value was: %r' % self.DEBUG
+            )
 
     def __repr__(self):
         vars_list = []
@@ -25,5 +41,8 @@ class Settings():
             vars_list.append('%s=%r' % (var, getattr(self, var, None)))
         return '\n'.join(vars_list)
         
-
-settings = Settings()
+try:
+    settings = Settings()
+except:
+    logging.exception('Error during Settings initialization')
+    raise
