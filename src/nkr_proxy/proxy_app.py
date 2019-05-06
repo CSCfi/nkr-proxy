@@ -76,7 +76,7 @@ def index_search(search_handler=None):
     if not query_string:
         raise BadRequest('search query is required')
 
-    if settings.DEBUG and 'debug_entitlements' in request.json:
+    if settings.DEBUG and request.json and 'debug_entitlements' in request.json:
         entitlements = request.json.pop('debug_entitlements')
         logger.debug('Using debug_entitlements: %r' % entitlements)
     else:
