@@ -70,20 +70,18 @@ def index_search(search_handler=None):
     user_id = request.headers.get('x-user-id', None)
     query_string = request.query_string.decode('utf-8')
 
-    if user_id is None:
-        raise BadRequest('header x-user-id is required')
-
     if not query_string:
         raise BadRequest('search query is required')
 
     if settings.DEBUG and request.json and 'debug_entitlements' in request.json:
         entitlements = request.json.pop('debug_entitlements')
         logger.debug('Using debug_entitlements: %r' % entitlements)
+    elif user_id is None:
+        logger.debug('No header x-user-id provided. Using entitlements = []')
+        entitlements = []
     else:
+        logger.debug('Header x-user-id == %s' % user_id)
         entitlements = get_rems_entitlements(user_id)
-
-    if not entitlements:
-        raise Forbidden('user has no entitlements')
 
     search_query = generate_permissioned_query('%s?%s' % (search_handler, query_string), entitlements)
 
@@ -138,14 +136,18 @@ def generate_permissioned_query(original_query, entitlements):
     particular permitted documents according to entitlements.
     """
     logger.debug('Adding entitlements to query...')
+
     for ent in entitlements:
         if ent.endswith('::10'):
+            # level 10 access only
+            logger.debug('Found level 10 entitlement: %s' % ent)
+            permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
             break
     else:
-        raise Forbidden('no access to level 10 metadata')
+        # open metadata access only
+        logger.debug('No level 10 entitlements found. Adding filter for level 0')
+        permission_query = 'fq=+filter(%s:0)' % LEVEL_RESTRICTION_FIELD
 
-    # level 10 access only
-    permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
     search_query = '%s&%s' % (original_query, permission_query)
 
     logger.debug('Entitlements added: %s' % permission_query)
