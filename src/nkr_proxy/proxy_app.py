@@ -84,9 +84,11 @@ def index_search(search_handler=None):
         logger.debug('Header x-user-id == %s' % user_id)
         entitlements = get_rems_entitlements(user_id)
 
-    search_query = generate_permissioned_query('%s?%s' % (search_handler, query_string), entitlements)
+    search_query, user_restriction_level = generate_query_restrictions(
+        '%s?%s' % (search_handler, query_string), entitlements
+    )
 
-    index_results = search_index(entitlements, search_query)
+    index_results = search_index(user_restriction_level, entitlements, search_query)
 
     return make_response(jsonify(index_results), 200)
 
@@ -131,18 +133,23 @@ def get_rems_entitlements(user_id):
     return [ ent['resource'] for ent in entitlements ]
 
 
-def generate_permissioned_query(original_query, entitlements):
+def generate_query_restrictions(original_query, entitlements):
     """
     Generate a query to augment the original query to index, to only target
-    particular permitted documents according to entitlements.
+    particular permitted documents according to entitlements. Additionally,
+    return the general restriction level of the user which is used for
+    verification filtering after the query.
     """
     logger.debug('Adding entitlements to query...')
+
+    user_restriction_level = 0
 
     for ent in entitlements:
         if ent.endswith('::10'):
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
             permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
+            user_restriction_level = 10
             break
     else:
         # open metadata access only
@@ -152,10 +159,11 @@ def generate_permissioned_query(original_query, entitlements):
     search_query = '%s&%s' % (original_query, permission_query)
 
     logger.debug('Entitlements added: %s' % permission_query)
-    return search_query
+    logger.debug('Adding user_restriction_level: %d' % user_restriction_level)
+    return search_query, user_restriction_level
 
 
-def search_index(entitlements, search_query):
+def search_index(user_restriction_level, entitlements, search_query):
     """
     Execute search to index.
     """
@@ -188,7 +196,7 @@ def search_index(entitlements, search_query):
         # an additional measure, since the query should already take care of it.
         filtered_results = [
             doc for doc in resp_json['response']['docs']
-            if doc[LEVEL_RESTRICTION_FIELD] == '10' or doc[DOCUMENT_UNIQUE_ID_FIELD] in entitlements
+            if doc[LEVEL_RESTRICTION_FIELD] == str(user_restriction_level) or doc[DOCUMENT_UNIQUE_ID_FIELD] in entitlements
         ]
 
         if len(filtered_results) != len(resp_json['response']['docs']):
