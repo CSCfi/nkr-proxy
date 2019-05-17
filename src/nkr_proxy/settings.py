@@ -16,6 +16,7 @@ class Settings():
         'INDEX_USERNAME',
         'INDEX_PASSWORD',
         'LEVEL_RESTRICTION_FIELD',
+        'DOCUMENT_UNIQUE_ID_FIELD',
         'LOG_LEVEL',
         'REMS_API_KEY',
         'REMS_URL',

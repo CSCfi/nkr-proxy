@@ -14,6 +14,7 @@ app = Flask(__name__)
 
 
 LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
+DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
 
 
 @app.before_request
@@ -187,7 +188,7 @@ def search_index(entitlements, search_query):
         # an additional measure, since the query should already take care of it.
         filtered_results = [
             doc for doc in resp_json['response']['docs']
-            # if doc[LEVEL_RESTRICTION_FIELD] == '10' or doc['id'] in entitlements
+            if doc[LEVEL_RESTRICTION_FIELD] == '10' or doc[DOCUMENT_UNIQUE_ID_FIELD] in entitlements
         ]
 
         if len(filtered_results) != len(resp_json['response']['docs']):
