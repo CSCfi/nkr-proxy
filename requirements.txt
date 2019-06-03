@@ -1,7 +1,7 @@
-Flask>=1.0.2
-gunicorn>=19.9.0
-ipdb>=0.12
-pur>=5.2.2
-pytest>=4.5.0
-requests>=2.22.0
-gevent>=1.4.0
+Flask>=1.0.3 # BSD
+gunicorn>=19.9.0 # MIT
+ipdb>=0.12 # BSD
+pur>=5.2.2 # BSD
+pytest>=4.5.0 # MIT
+requests>=2.22.0 # apache
+gevent>=1.4.0 # MIT
