@@ -1,3 +1,5 @@
+# Copyright 2019 Ministry of Education and Culture, Finland
+# SPDX-License-Identifier: MIT
 
 import logging
 from time import time
