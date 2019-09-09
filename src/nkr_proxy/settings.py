@@ -12,14 +12,19 @@ logger = logging.getLogger(__name__)
 
 class Settings():
 
+    # try to find these vars from environment variables,
+    # which should have been sourced from config.sh and test_config.sh
     NKR_PROXY_CONF_VARS = (
+        'NKR_ENV',
         'DEBUG',
         'INDEX_URL',
         'INDEX_NAME',
         'INDEX_USERNAME',
         'INDEX_PASSWORD',
+        'INDEX_ALLOWED_APIS',
         'LEVEL_RESTRICTION_FIELD',
         'DOCUMENT_UNIQUE_ID_FIELD',
+        'METADATA_LEVEL_10_RESOURCE_ID',
         'LOG_LEVEL',
         'REMS_API_KEY',
         'REMS_URL',
@@ -28,7 +33,13 @@ class Settings():
     def __init__(self):
 
         for env_var in self.NKR_PROXY_CONF_VARS:
-            setattr(self, env_var, os.environ.get(env_var, None))
+
+            env_var_value = os.environ.get(env_var, None)
+
+            if env_var == 'INDEX_ALLOWED_APIS':
+                env_var_value = set(env_var_value.split(','))
+
+            setattr(self, env_var, env_var_value)
 
         if self.DEBUG in ('1', 'true'):
             self.DEBUG = True
