@@ -1,0 +1,47 @@
+[
+    {
+        "id": "123-ABC",
+        "_document_id": "123-ABC",
+        "display_restriction_id_str": "0",
+        "title": "Test document",
+        "description": "Open test data.",
+        "author": "Interesting Author",
+        "institution": "csc.fi"
+    },
+    {
+        "id": "123-ABC",
+        "_document_id": "123-ABC::10",
+        "display_restriction_id_str": "10",
+        "title": "Test document",
+        "description": "Level 10 sensitive test data",
+        "author": "Interesting Author",
+        "institution": "csc.fi"
+    },
+    {
+        "id": "456-DEF",
+        "_document_id": "456-DEF",
+        "display_restriction_id_str": "0",
+        "title": "Another Test document",
+        "description": "Open test data.",
+        "author": "Curious Author",
+        "institution": "csc.fi"
+    },
+    {
+        "id": "456-DEF",
+        "_document_id": "456-DEF::10",
+        "display_restriction_id_str": "10",
+        "title": "Another Test document",
+        "description": "Level 10 sensitive test data",
+        "author": "Curious Author",
+        "institution": "csc.fi"
+    },
+    {
+        "id": "456-DEF",
+        "_document_id": "456-DEF::30",
+        "display_restriction_id_str": "30",
+        "title": "Another Test document",
+        "description": "Level 30 sensitive test data",
+        "author": "Curious Author, Happy Author",
+        "institution": "csc.fi"
+    }
+]

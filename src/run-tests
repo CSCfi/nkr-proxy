@@ -1,0 +1,77 @@
+#!/bin/bash
+# Copyright 2019 Ministry of Education and Culture, Finland
+# SPDX-License-Identifier: MIT
+
+#
+# Wrapper script to setup test env and run nkr-proxy automated tests.
+#
+
+
+if [ "$EUID" -ne 0 ]; then
+    # probably would be better to add nkr-user to relevant groups in
+    # order to be able to run solr commands.
+    echo "Please run tests as root. Setting up tests requires executing solr commands."
+    exit 1
+fi
+
+if [ $# -eq 0 ]; then
+    EXTRA_PYTEST_PARAMS=''
+else
+    EXTRA_PYTEST_PARAMS=$@
+fi
+
+echo "### PREPARING TEST ENV..."
+
+cd /data/solr/vendor
+
+# note: uses cores, therefore only works for local dev env, which does not user solr cloud.
+# (solr cloud uses "collections" instead of cores).
+echo "### CREATING CORE..."
+sudo -u solr SOLR_INCLUDE=/data/solr/vufind/solr.in.finna.sh bin/solr create -c test_biblio -d /data/solr/vufind/biblio/conf -p 8983 | grep 'already exists' &> /dev/null
+
+if [ $? == 0 ]; then
+
+    # if something breaks during this script, its possible that the last step
+    # (deleting the core) could not be executed.
+    echo "### CORE PROBABLY already exists - try deleting it first..."
+    bin/solr delete -c test_biblio
+
+    if [ $? -ne 0 ]; then
+        exit 1
+    fi
+
+    echo "### CORE DELETED"
+
+fi
+
+
+echo "### LOADING TESTDATA..."
+bin/post -c test_biblio /usr/local/nkr-proxy/nkr-proxy/src/tests/testdata/testdata.json
+
+if [ $? -ne 0 ]; then
+    exit 1
+fi
+
+# switch to nkr-user, source config.sh and override some parameters
+# by sourcing also test_config.sh. finally execute nkr-proxy test suite.
+echo "### RUNNING NKR-PROXY TESTSUITE..."
+
+sudo -u nkr-user bash -c "
+set -a
+source /usr/local/nkr-proxy/config/config.sh
+source /usr/local/nkr-proxy/config/test_config.sh
+set +a
+source /usr/local/nkr-proxy/venv/bin/activate
+cd /usr/local/nkr-proxy/nkr-proxy/src
+pytest tests/ -s -x $EXTRA_PYTEST_PARAMS
+"
+
+pytest_status=$?
+
+cd /data/solr/vendor
+echo "### DELETING TEST CORE..."
+sudo -u solr SOLR_INCLUDE=/data/solr/vufind/solr.in.finna.sh bin/solr delete -c test_biblio
+
+echo "--done--"
+echo "exiting with status code $pytest_status"
+exit $pytest_status

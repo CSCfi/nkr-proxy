@@ -1,2 +1,3 @@
 pur==5.2.2 # BSD-3
 pytest==4.6.5 # MIT
+responses==0.10.6 # Apache-2.0
