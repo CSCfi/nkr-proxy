@@ -115,5 +115,5 @@ class Settings():
 try:
     settings = Settings()
 except:
-    logging.exception('Error during Settings initialization')
+    logger.exception('Error during Settings initialization')
     raise
