@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from random import shuffle
 from time import time
 
 from flask import Flask, g, Blueprint, jsonify, make_response, request
@@ -17,6 +18,7 @@ logger = logging.getLogger(__name__)
 LEVEL_10_RESOURCE_ID = settings.METADATA_LEVEL_10_RESOURCE_ID
 LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
+VERIFY_TLS = settings.VERIFY_TLS
 
 
 bp = Blueprint('api', __name__)
@@ -167,22 +169,34 @@ def search_index(user_restriction_level, entitlements, search_query):
     """
     logger.debug('Searching index...')
 
-    full_index_url = '%s/%s/%s' % (settings.INDEX_URL, settings.INDEX_NAME, search_query)
+    shuffle(settings.INDEX_HOSTS)
 
-    logger.debug(full_index_url)
+    for n_retry, index_host in enumerate(settings.INDEX_HOSTS):
 
-    try:
-        response = http_request(
-            full_index_url,
-            auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
-        )
-    except BadRequest as e:
-        if settings.DEBUG:
-            raise
-        # but hide details from client
-        raise BadRequest('index returned: 400, bad request')
-    except:
-        raise ServiceNotAvailable()
+        full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
+
+        logger.debug(full_index_url)
+
+        try:
+            response = http_request(
+                full_index_url,
+                auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD),
+                headers=settings.INDEX_HEADERS
+            )
+        except (Unauthorized, Forbidden) as e:
+            logger.error(e.message)
+            raise ServiceNotAvailable()
+        except BadRequest as e:
+            if settings.DEBUG:
+                raise
+            raise BadRequest('index returned: 400, bad request')
+        except requests.exceptions.ConnectionError:
+            n_retry += 1 # offset since enumeration began from 0
+            if n_retry >= len(settings.INDEX_HOSTS):
+                raise ServiceNotAvailable()
+            logging.info('Connection to index failed, trying another host... (retry attempt #%d)' % n_retry)
+        else:
+            break
 
     logger.debug('Search successful')
     logger.debug('Validating results against entitlements...')
@@ -235,15 +249,14 @@ def search_index(user_restriction_level, entitlements, search_query):
 
 def http_request(*args, method='get', **kwargs):
     if settings.DEBUG:
-        kwargs['verify'] = False
         logger.debug('HTTP request begin with data:')
         # logger.debug('args: %r' % args)
         # logger.debug('kwargs: %r' % kwargs)
 
     try:
-        response = getattr(requests, method)(*args, **kwargs)
-    except Exception:
-        logger.exception('HTTP request failed')
+        response = getattr(requests, method)(*args, verify=VERIFY_TLS, **kwargs)
+    except Exception as e:
+        logger.exception('HTTP request failed (%s): %s' % (type(e), e))
         raise
 
     logger.debug('HTTP request completed with code: %d' % response.status_code)
