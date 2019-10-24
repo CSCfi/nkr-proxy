@@ -4,7 +4,10 @@
 import logging
 import os
 
+from dotenv import load_dotenv
+
 from nkr_proxy.exceptions import ConfigurationError
+from nkr_proxy.utils import executing_tests
 
 
 logger = logging.getLogger(__name__)
@@ -60,6 +63,14 @@ class Settings():
     INDEX_HOSTS = []
 
     def __init__(self):
+
+        if not executing_tests():
+            # reload environment variables from file, since systemd only reloads env
+            # variables upon "restart", not "reload"
+            load_dotenv(
+                dotenv_path=os.environ.get('CONFIG_PATH'),
+                override=True
+            )
 
         for env_var in self.NKR_PROXY_CONF_VARS:
 
