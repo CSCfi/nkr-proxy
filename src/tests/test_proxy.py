@@ -247,7 +247,7 @@ class TestSolrBasics(BaseTestClass):
         )
 
         # let there be a real connection error
-        monkeypatch.setattr(settings, 'INDEX_URL', 'https://mock-index-url.nope')
+        monkeypatch.setattr(settings, 'INDEX_HOSTS', ['https://mock-index-url.nope'])
         responses.add_passthru('https://mock-index-url.nope')
 
         caplog.set_level(logging.CRITICAL) # error is expected

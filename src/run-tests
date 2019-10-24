@@ -5,7 +5,9 @@
 #
 # Wrapper script to setup test env and run nkr-proxy automated tests.
 #
-
+# To execute a particular test case only, run e.g.:
+# ./run-tests /test_proxy.py::TestSolrBasics::test_solr_wrong_auth_credentials
+#
 
 if [ "$EUID" -ne 0 ]; then
     # probably would be better to add nkr-user to relevant groups in
@@ -63,7 +65,7 @@ source /usr/local/nkr-proxy/config/test_config.sh
 set +a
 source /usr/local/nkr-proxy/venv/bin/activate
 cd /usr/local/nkr-proxy/nkr-proxy/src
-pytest tests/ -s -x $EXTRA_PYTEST_PARAMS
+pytest -s -x tests/$EXTRA_PYTEST_PARAMS
 "
 
 pytest_status=$?
