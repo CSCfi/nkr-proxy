@@ -148,12 +148,14 @@ def generate_query_restrictions(original_query, entitlements):
         if ent == LEVEL_10_RESOURCE_ID:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
+            logger.info('User has level 10 access')
             permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
             user_restriction_level = 10
             break
     else:
         # open metadata access only
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
+        logger.info('User has no entitlements')
         permission_query = 'fq=+filter(%s:0)' % LEVEL_RESTRICTION_FIELD
 
     search_query = '%s&%s' % (original_query, permission_query)
@@ -285,11 +287,26 @@ def http_request(*args, method='get', **kwargs):
 
 def before_request():
     g.request_start_time = time()
+    logger.info(
+        '%s [%s] - %s %s',
+        request.remote_addr,
+        request.headers.get('x-user-id', '-'),
+        request.method,
+        request.full_path
+    )
 
 
 def after_request(response):
     duration = '%.3fs' % (time() - g.request_start_time)
-    logger.info('%s %s %s %s %s', request.remote_addr, request.method, request.full_path, response.status, duration)
+    logger.info(
+        '%s [%s] - %s %s %s %s',
+        request.remote_addr,
+        request.headers.get('x-user-id', '-'),
+        request.method,
+        request.full_path,
+        response.status,
+        duration
+    )
     return response
 
 
