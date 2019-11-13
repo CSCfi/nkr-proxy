@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from base64 import b64encode
 from random import shuffle
 from time import time
 
@@ -70,6 +71,8 @@ def index_search(search_handler=None):
     """
     logger.debug('Begin index_search')
 
+    response_headers = {}
+
     if search_handler not in settings.INDEX_ALLOWED_APIS:
         raise BadRequest('Invalid search handler. Valid search handlers are: %s' % settings.INDEX_ALLOWED_APIS)
 
@@ -93,6 +96,27 @@ def index_search(search_handler=None):
         if LEVEL_10_RESOURCE_ID in entitlements:
             # user has an active level 10 entitlemnt -> track user activity
             cache.set('user-last-active:%s' % user_id, round(time()))
+            response_headers['x-user-access-status'] = 'ok'
+        else:
+            # check if user has a last-known-application, check its status,
+            # and make that info available in the response
+            apps = rems.get_rems_user_applications(
+                user_id,
+                filter_resource=LEVEL_10_RESOURCE_ID
+            )
+
+            if apps:
+                # another GET to a particular application, to get its event data
+                app = rems.get_rems_user_application(user_id, apps[0]['application/id'])
+
+                # form a response based on application event data
+                close_info = rems.get_rems_application_close_info(app)
+                response_headers['x-user-access-status'] = close_info['custom_state']
+                response_headers['x-user-access-status-comment'] = \
+                    b64encode(close_info['comment'].encode('utf-8')).decode('utf-8')
+            else:
+                # user did not have entitlements, but also never any submitted applications
+                response_headers['x-user-access-status'] = 'no-applications'
 
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
@@ -100,7 +124,12 @@ def index_search(search_handler=None):
 
     index_results = search_index(user_restriction_level, entitlements, search_query)
 
-    return make_response(jsonify(index_results), 200)
+    response = make_response(jsonify(index_results), 200)
+
+    for h, v in response_headers.items():
+        response.headers[h] = v
+
+    return response
 
 
 @bp.route("/")

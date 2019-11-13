@@ -65,6 +65,129 @@ def close_rems_application(user_id, application_id, comment, close_as_user=None)
     return True
 
 
+def get_rems_application_close_info(application):
+    """
+    Extract information about the closing-conditions the REMS application:
+    - state: REMS state value
+    - comment: a comment from the closing user, if any, that was given as reason for closing the application
+    - custom_state: a custom state value that can be passed to the client so it knows why user has lost access.
+      possible values are:
+        - 'logout-closed':          closed due to user logging out
+        - 'session-expired-closed': closed due to user's inactivity
+        - 'manual-closed':          a REMS approver manually closed the application
+        - 'manual-rejected':        a REMS approver manually rejected the application
+        - 'manual-revoked':         a REMS approver manually closed the application using blacklist
+        - 'unknown-closed':         some other, as-of-yet unknown case
+    """
+    if application['application/state'] == REMS_STATE_SUBMITTED:
+        # currently there is a tiny delay in behaviour of auto-approve bot.
+        # if the latest application is still in submitted state, let the
+        # client know.
+        return { 'custom_state': 'submitted' }
+
+
+    # events are in chronological order, so reverse list to get latest events first
+    for event in reversed(application.get('application/events', [])):
+
+        if event.get('event/type') in (REMS_EVENT_REJECTED, REMS_EVENT_CLOSED, REMS_EVENT_REVOKED):
+
+            close_info = {
+                'comment': event.get('application/comment'),
+                'custom_state': None
+            }
+
+            if close_info['comment'] == settings.REMS_SESSION_CLOSE_MESSAGE:
+                close_info['custom_state'] = 'session-expired-closed'
+
+            elif close_info['comment'] == settings.REMS_LOGOUT_MESSAGE:
+                close_info['custom_state'] = 'logout-closed'
+
+            elif application['application/state'] == REMS_STATE_CLOSED:
+                close_info['custom_state'] = 'manual-closed'
+
+            elif application['application/state'] == REMS_STATE_REJECTED:
+                close_info['custom_state'] = 'manual-rejected'
+
+            elif application['application/state'] == REMS_STATE_REVOKED:
+                close_info['custom_state'] = 'manual-revoked'
+
+            else:
+                close_info['custom_state'] = 'unknown-closed'
+
+            return close_info
+
+    logger.error(
+        'Closed REMS application did not contain event for closing the application?? Returning 503'
+    )
+
+    raise ServiceNotAvailable()
+
+
+def get_rems_user_application(user_id, application_id):
+    """
+    Get a specific application of a user from REMS.
+    """
+    logger.debug('Getting REMS application id %d for user: %s...' % (application_id, user_id))
+
+    headers = {
+        'Accept': 'application/json',
+        'x-rems-api-key': settings.REMS_API_KEY,
+        'x-rems-user-id': user_id,
+    }
+
+    try:
+        response = http_request('https://%s/api/applications/%d' % (settings.REMS_HOST, application_id), headers=headers)
+    except:
+        raise ServiceNotAvailable()
+
+    return response.json()
+
+
+def get_rems_user_applications(user_id, filter_resource=None):
+    """
+    Get all applications of a user from REMS. Optionally retrieve only applications that
+    contain a particular resource. Applications are returned in order of first-submitted date,
+    latest application first. NOTE! Excludes unsubmitted applications!
+    """
+    logger.debug('Getting REMS applications for user: %s...' % user_id)
+
+    headers = {
+        'Accept': 'application/json',
+        'x-rems-api-key': settings.REMS_API_KEY,
+        'x-rems-user-id': user_id,
+    }
+
+    try:
+        response = http_request('https://%s/api/my-applications' % settings.REMS_HOST, headers=headers)
+    except:
+        raise ServiceNotAvailable()
+
+    applications = response.json()
+
+    applications = [
+        app for app in applications
+        if 'application/first-submitted' in app # only applications that have been submitted
+        and app['application/state'] != REMS_STATE_DRAFT
+    ]
+
+    if filter_resource:
+
+        filtered_applications = []
+
+        for app in applications:
+            for resource in app.get('application/resources', []):
+                if resource.get('resource/ext-id') == filter_resource:
+                    filtered_applications.append(app)
+
+        applications = sorted(
+            filtered_applications,
+            key=lambda k: k['application/first-submitted'],
+            reverse=True
+        )
+
+    return applications
+
+
 def get_rems_entitlements(user_id, full_entitlements=False):
     """
     Return current active entitlements of a user from REMS.
