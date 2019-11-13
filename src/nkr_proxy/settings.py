@@ -75,6 +75,12 @@ class Settings():
         'CACHE_PASSWORD',
         'CACHE_DB',
         'CACHE_SOCKET_TIMEOUT',
+        'SESSION_TIMEOUT_LIMIT',
+        'SESSION_CLEANUP_MAX_TIME',
+        'REMS_SESSION_CLOSE_MESSAGE',
+        'REMS_SESSION_CLOSE_USER',
+        'REMS_LOGOUT_MESSAGE',
+        'CRON_SESSION_EXPIRE_LOG',
     )
 
     INDEX_HEADERS = {}
@@ -97,7 +103,7 @@ class Settings():
                 env_var_value = get_list_conf_param(env_var)
             elif env_var in ('DEBUG', 'VERIFY_TLS'):
                 env_var_value = get_boolean_conf_param(env_var)
-            elif env_var in ('CACHE_PORT',):
+            elif env_var in ('CACHE_PORT', 'SESSION_TIMEOUT_LIMIT', 'SESSION_CLEANUP_MAX_TIME'):
                 env_var_value = get_int_conf_param(env_var)
             else:
                 env_var_value = os.environ.get(env_var, None)

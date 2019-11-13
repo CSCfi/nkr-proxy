@@ -23,6 +23,48 @@ REMS_STATE_REJECTED = 'application.state/rejected'
 REMS_STATE_REVOKED = 'application.state/revoked'
 
 
+def close_rems_application(user_id, application_id, comment, close_as_user=None):
+    """
+    Close a single application in REMS by application_id.
+    If parameter close_as_user is provided, attempt to close the application as that user,
+    otherwise close the application as the owner (user_id).
+    """
+    logger.info('Closing REMS application id %d for user: %s...' % (application_id, user_id))
+
+    headers = {
+        'Accept': 'application/json',
+        'x-rems-api-key': settings.REMS_API_KEY,
+        'x-rems-user-id': close_as_user or user_id,
+    }
+
+    payload = {
+        'application-id': application_id,
+        'comment': comment,
+    }
+
+    try:
+        response = http_request(
+            'https://%s/api/applications/close' % settings.REMS_HOST,
+            method='post',
+            json=payload,
+            headers=headers
+        )
+    except Exception as e:
+        logger.exception('Could not close application %d for user %s: %s' % (application_id, user_id, str(e)))
+        return False
+
+    if response.json()['success'] == False:
+        logger.info(
+            'Could not close application %d for user %s: %s' \
+            % (application_id, user_id, str(response.json()['errors']))
+        )
+        return False
+
+    logger.info('Closed application %d for user %s' % (application_id, user_id))
+
+    return True
+
+
 def get_rems_entitlements(user_id, full_entitlements=False):
     """
     Return current active entitlements of a user from REMS.
