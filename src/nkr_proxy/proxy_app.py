@@ -11,6 +11,9 @@ import werkzeug
 
 from nkr_proxy.exceptions import *
 from nkr_proxy.settings import settings
+from nkr_proxy.cache import cache
+from nkr_proxy.utils import http_request
+from nkr_proxy.services import rems
 
 
 logger = logging.getLogger(__name__)
@@ -84,10 +87,15 @@ def index_search(search_handler=None):
         entitlements = []
     else:
         logger.debug('Header x-user-id == %s' % user_id)
-        entitlements = get_rems_entitlements(user_id)
+
+        entitlements = rems.get_rems_entitlements(user_id)
+
+        if LEVEL_10_RESOURCE_ID in entitlements:
+            # user has an active level 10 entitlemnt -> track user activity
+            cache.set('user-last-active:%s' % user_id, round(time()))
 
     search_query, user_restriction_level = generate_query_restrictions(
-        '%s?%s' % (search_handler, query_string), entitlements
+        user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
     index_results = search_index(user_restriction_level, entitlements, search_query)
@@ -101,39 +109,7 @@ def hello():
     return "<h1 style='color:blue'>Hello There!</h1>"
 
 
-def get_rems_entitlements(user_id):
-
-    logger.debug('Retrieving entitlements for user: %s...' % user_id)
-
-    headers = {
-        'Accept': 'application/json',
-        'x-rems-api-key': settings.REMS_API_KEY,
-        'x-rems-user-id': user_id,
-    }
-
-    try:
-        response = http_request(settings.REMS_URL, headers=headers)
-    except:
-        raise ServiceNotAvailable()
-
-    if response.status_code == 401:
-        raise Unauthorized('rems: %s' % response.content.decode('utf-8'))
-    elif response.status_code == 403:
-        raise Forbidden('rems: %s' % response.content.decode('utf-8'))
-
-    entitlements = response.json()
-
-    if settings.DEBUG:
-        logger.debug('Received %d entitlements for user %s' % (len(entitlements), user_id))
-        logger.debug('Entitlements:')
-        for ent in entitlements:
-            logger.debug('- %s' % ent['resource'])
-
-    # only care about the resource identifiers from the response
-    return [ ent['resource'] for ent in entitlements ]
-
-
-def generate_query_restrictions(original_query, entitlements):
+def generate_query_restrictions(user_id, original_query, entitlements):
     """
     Generate a query to augment the original query to index, to only target
     particular permitted documents according to entitlements. Additionally,
@@ -148,14 +124,14 @@ def generate_query_restrictions(original_query, entitlements):
         if ent == LEVEL_10_RESOURCE_ID:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
-            logger.info('User has level 10 access')
+            logger.info('User %s has level 10 access' % user_id)
             permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
             user_restriction_level = 10
             break
     else:
         # open metadata access only
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
-        logger.info('User has no entitlements')
+        logger.info('User %s has no entitlements' % user_id)
         permission_query = 'fq=+filter(%s:0)' % LEVEL_RESTRICTION_FIELD
 
     search_query = '%s&%s' % (original_query, permission_query)
@@ -247,42 +223,6 @@ def search_index(user_restriction_level, entitlements, search_query):
     resp_json['response']['docs'] = filtered_results
 
     return resp_json
-
-
-def http_request(*args, method='get', **kwargs):
-    if settings.DEBUG:
-        logger.debug('HTTP request begin with data:')
-        # logger.debug('args: %r' % args)
-        # logger.debug('kwargs: %r' % kwargs)
-
-    try:
-        response = getattr(requests, method)(*args, verify=VERIFY_TLS, **kwargs)
-    except Exception as e:
-        logger.exception('HTTP request failed (%s): %s' % (type(e), e))
-        raise
-
-    logger.debug('HTTP request completed with code: %d' % response.status_code)
-
-    if response.status_code != 200:
-        requested_host = response.request.url[:-len(response.request.path_url)]
-        message = '%s: %s' % (requested_host, response.content.decode('utf-8'))
-
-        if response.status_code == 400:
-            logger.warning(message)
-            raise BadRequest(message)
-        elif response.status_code == 401:
-            logger.error(message)
-            raise Unauthorized(message)
-        elif response.status_code == 403:
-            logger.error(message)
-            raise Forbidden(message)
-        elif response.status_code == 404:
-            raise NotFound(message)
-        else:
-            logger.error(message)
-            raise ServiceNotAvailable(message)
-
-    return response
 
 
 def before_request():
