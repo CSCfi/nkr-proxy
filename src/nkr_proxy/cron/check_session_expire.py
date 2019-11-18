@@ -12,13 +12,6 @@ from nkr_proxy.services import rems
 from nkr_proxy.settings import settings
 
 
-# settings.SESSION_TIMEOUT_LIMIT = 900
-# settings.SESSION_CLEANUP_MAX_TIME = 300
-# settings.REMS_SESSION_CLOSE_MESSAGE = 'SESSION AIKAKATKAISU'
-# settings.REMS_SESSION_CLOSE_USER = 'nkr-session-bot'
-# settings.REMS_LOGOUT_MESSAGE = 'ULOSKIRJAUTUMINEN'
-# settings.CRON_SESSION_EXPIRE_LOG = '/var/log/nkr-proxy/check_session_expire.log'
-
 logger = logging.getLogger(__name__)
 formatter = logging.Formatter(fmt='%(asctime)s %(process)d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S.%03dZ')
 formatter.converter = time.gmtime
