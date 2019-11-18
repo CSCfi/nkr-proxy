@@ -38,6 +38,9 @@ logger.setLevel(logging.INFO)
 
 FULL_INDEX_URL = '%s/%s/select' % (settings.INDEX_URL, settings.INDEX_NAME)
 
+REMS_ENTITLEMENTS_API = 'https://%s/api/entitlements' % settings.REMS_HOST
+REMS_MY_APPLICATIONS_API = 'https://%s/api/my-applications' % settings.REMS_HOST
+
 
 class BaseTestClass():
 
@@ -122,7 +125,7 @@ class TestREMSBasics(BaseTestClass):
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
+            REMS_ENTITLEMENTS_API,
             status=401,
             content_type='application/json',
             body='invalid api key'
@@ -133,7 +136,7 @@ class TestREMSBasics(BaseTestClass):
         response = client.get('/api/v1/index_search/select?q=test', headers=self._headers)
         assert response.status_code == 503, response.data
 
-        assert responses.calls[0].request.url == settings.REMS_URL
+        assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
         assert responses.calls[0].response.status_code == 401
 
 
@@ -166,7 +169,15 @@ class TestREMSEntitlements(BaseTestClass):
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
+            REMS_ENTITLEMENTS_API,
+            status=200,
+            content_type='application/json',
+            json=[]
+        )
+
+        responses.add(
+            'GET',
+            REMS_MY_APPLICATIONS_API,
             status=200,
             content_type='application/json',
             json=[]
@@ -174,7 +185,7 @@ class TestREMSEntitlements(BaseTestClass):
 
         response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
         assert response.status_code == 200, response.data
-        assert responses.calls[0].request.url == settings.REMS_URL
+        assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
 
         self._assert_response_metadata_level(response, 0)
 
@@ -182,11 +193,20 @@ class TestREMSEntitlements(BaseTestClass):
     @responses.activate
     def test_entitlements_list_empty(self, client):
         """
-        Should return public metadata.
+        Should return public metadata, and response headers contains information that
+        user does not have any applications.
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
+            REMS_ENTITLEMENTS_API,
+            status=200,
+            content_type='application/json',
+            json=[]
+        )
+
+        responses.add(
+            'GET',
+            REMS_MY_APPLICATIONS_API,
             status=200,
             content_type='application/json',
             json=[]
@@ -194,7 +214,9 @@ class TestREMSEntitlements(BaseTestClass):
 
         response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
         assert response.status_code == 200, response.data
-        assert responses.calls[0].request.url == settings.REMS_URL
+        assert response.headers['x-user-access-status'] == 'no-applications'
+        assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
+        assert responses.calls[1].request.url == REMS_MY_APPLICATIONS_API
 
         self._assert_response_metadata_level(response, 0)
 
@@ -206,7 +228,7 @@ class TestREMSEntitlements(BaseTestClass):
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
+            REMS_ENTITLEMENTS_API,
             status=200,
             content_type='application/json',
             json=[
@@ -222,7 +244,7 @@ class TestREMSEntitlements(BaseTestClass):
 
         response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
         assert response.status_code == 200, response.data
-        assert responses.calls[0].request.url == settings.REMS_URL
+        assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
 
         self._assert_response_metadata_level(response, 10)
 
@@ -233,25 +255,16 @@ class TestSolrBasics(BaseTestClass):
     # solr basic accessiblity
 
 
-    @responses.activate
     def test_solr_not_reachable(self, client, caplog, monkeypatch):
         """
         Should fail gracefully and return 503.
         """
-        responses.add(
-            'GET',
-            settings.REMS_URL,
-            status=200,
-            content_type='application/json',
-            json=[]
-        )
-
         # let there be a real connection error
         monkeypatch.setattr(settings, 'INDEX_HOSTS', ['https://mock-index-url.nope'])
         responses.add_passthru('https://mock-index-url.nope')
 
         caplog.set_level(logging.CRITICAL) # error is expected
-        response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
+        response = client.get('/api/v1/index_search/select?q=*:*', headers={})
         assert response.status_code == 503, response.data
 
     @responses.activate
@@ -261,14 +274,6 @@ class TestSolrBasics(BaseTestClass):
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
-            status=200,
-            content_type='application/json',
-            json=[]
-        )
-
-        responses.add(
-            'GET',
             FULL_INDEX_URL,
             status=401,
             content_type='application/json',
@@ -276,7 +281,7 @@ class TestSolrBasics(BaseTestClass):
         )
 
         caplog.set_level(logging.CRITICAL) # error is expected
-        response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
+        response = client.get('/api/v1/index_search/select?q=*:*', headers={})
         assert response.status_code == 503, response.data
 
 
@@ -293,14 +298,6 @@ class TestSolrResponseValidation(BaseTestClass):
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
-            status=200,
-            content_type='application/json',
-            json=[]
-        )
-
-        responses.add(
-            'GET',
             FULL_INDEX_URL,
             status=200,
             content_type='application/json',
@@ -314,7 +311,7 @@ class TestSolrResponseValidation(BaseTestClass):
         )
 
         caplog.set_level(logging.CRITICAL) # error is expected
-        response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
+        response = client.get('/api/v1/index_search/select?q=*:*', headers={})
         assert response.status_code == 400, response.data
 
     @responses.activate
@@ -322,14 +319,6 @@ class TestSolrResponseValidation(BaseTestClass):
         """
         Fail if document misses field which defines its sensitivity level.
         """
-        responses.add(
-            'GET',
-            settings.REMS_URL,
-            status=200,
-            content_type='application/json',
-            json=[]
-        )
-
         responses.add(
             'GET',
             FULL_INDEX_URL,
@@ -346,7 +335,7 @@ class TestSolrResponseValidation(BaseTestClass):
         )
 
         caplog.set_level(logging.CRITICAL) # error is expected
-        response = client.get('/api/v1/index_search/select?q=*:*', headers=self._headers)
+        response = client.get('/api/v1/index_search/select?q=*:*', headers={})
         assert response.status_code == 400, response.data
 
     @responses.activate
@@ -360,7 +349,7 @@ class TestSolrResponseValidation(BaseTestClass):
         """
         responses.add(
             'GET',
-            settings.REMS_URL,
+            REMS_ENTITLEMENTS_API,
             status=200,
             content_type='application/json',
             json=[{
@@ -370,6 +359,14 @@ class TestSolrResponseValidation(BaseTestClass):
                 "end": None,
                 "mail": "RDapplicant1@csc.fi"
             }]
+        )
+
+        responses.add(
+            'GET',
+            REMS_MY_APPLICATIONS_API,
+            status=200,
+            content_type='application/json',
+            json=[]
         )
 
         responses.add(
@@ -415,7 +412,6 @@ class TestSolrAbuse(BaseTestClass):
             response = client.get('/api/v1/index_search/%s?q=test' % api)
             assert response.status_code == 200, 'tried api: %s. response: %s' % (api, response.data)
 
-    @responses.activate
     def test_query_added_fq_filter_10(self, client):
         """
         Ensure query does not return results if original query already has included
@@ -424,17 +420,9 @@ class TestSolrAbuse(BaseTestClass):
         The query should return successfully, but since there will be two "AND" clauses
         that can never be true simultaneously, there must be 0 total results.
         """
-        responses.add(
-            'GET',
-            settings.REMS_URL,
-            status=200,
-            content_type='application/json',
-            json=[]
-        )
-
         response = client.get(
             '/api/v1/index_search/select?q=*:*&fq=+filter(%s:10)' % settings.LEVEL_RESTRICTION_FIELD,
-            headers=self._headers
+            headers={}
         )
         assert response.status_code == 200, response.data
         assert len(response.json['response']['docs']) == 0

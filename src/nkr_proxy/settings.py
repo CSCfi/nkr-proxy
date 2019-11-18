@@ -3,14 +3,21 @@
 
 import logging
 import os
+import sys
 
 from dotenv import load_dotenv
 
 from nkr_proxy.exceptions import ConfigurationError
-from nkr_proxy.utils import executing_tests
 
 
 logger = logging.getLogger(__name__)
+
+
+def executing_tests():
+    """
+    When automated tests are being executed, the module 'pytest' is loaded.
+    """
+    return 'pytest' in sys.modules
 
 
 def get_boolean_conf_param(env_var):
@@ -25,6 +32,13 @@ def get_boolean_conf_param(env_var):
     raise ConfigurationError(
         '%s value must be one of: 1, 0, "true", "false". Given value was: %r' % (env_var, env_var_value)
     )
+
+
+def get_int_conf_param(env_var):
+    env_var_value = os.environ.get(env_var, None)
+    if env_var_value:
+        return int(env_var_value)
+    return None
 
 
 def get_list_conf_param(env_var):
@@ -55,7 +69,18 @@ class Settings():
         'METADATA_LEVEL_10_RESOURCE_ID',
         'LOG_LEVEL',
         'REMS_API_KEY',
-        'REMS_URL',
+        'REMS_HOST',
+        'CACHE_HOST',
+        'CACHE_PORT',
+        'CACHE_PASSWORD',
+        'CACHE_DB',
+        'CACHE_SOCKET_TIMEOUT',
+        'SESSION_TIMEOUT_LIMIT',
+        'SESSION_CLEANUP_MAX_TIME',
+        'REMS_SESSION_CLOSE_MESSAGE',
+        'REMS_SESSION_CLOSE_USER',
+        'REMS_LOGOUT_MESSAGE',
+        'CRON_SESSION_EXPIRE_LOG',
     )
 
     INDEX_HEADERS = {}
@@ -78,6 +103,8 @@ class Settings():
                 env_var_value = get_list_conf_param(env_var)
             elif env_var in ('DEBUG', 'VERIFY_TLS'):
                 env_var_value = get_boolean_conf_param(env_var)
+            elif env_var in ('CACHE_PORT', 'SESSION_TIMEOUT_LIMIT', 'SESSION_CLEANUP_MAX_TIME'):
+                env_var_value = get_int_conf_param(env_var)
             else:
                 env_var_value = os.environ.get(env_var, None)
 
