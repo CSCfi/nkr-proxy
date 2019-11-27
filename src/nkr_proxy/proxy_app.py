@@ -112,9 +112,12 @@ def index_search(search_handler=None):
 
                 # form a response based on application event data
                 close_info = rems.get_rems_application_close_info(app)
+
                 response_headers['x-user-access-status'] = close_info['custom_state']
-                response_headers['x-user-access-status-comment'] = \
-                    b64encode(close_info['comment'].encode('utf-8')).decode('utf-8')
+
+                if 'comment' in close_info:
+                    response_headers['x-user-access-status-comment'] = \
+                        b64encode(close_info['comment'].encode('utf-8')).decode('utf-8')
             else:
                 # user did not have entitlements, but also never any submitted applications
                 response_headers['x-user-access-status'] = 'no-applications'
