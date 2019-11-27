@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 LEVEL_10_RESOURCE_ID = settings.METADATA_LEVEL_10_RESOURCE_ID
 LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
+ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIELD]
 VERIFY_TLS = settings.VERIFY_TLS
 
 
@@ -164,6 +165,12 @@ def generate_query_restrictions(user_id, original_query, entitlements):
         permission_query = 'fq=+filter(%s:0)' % LEVEL_RESTRICTION_FIELD
 
     search_query = '%s&%s' % (original_query, permission_query)
+
+    if 'fl=' in original_query:
+        # if query parameter fl is not defined, all fields are retrieved by default.
+        # if specific fields are defined, ensure that fields needed for validation
+        # are present in the query.
+        search_query += '&fl=%s' % '%2C'.join(ADDITIONAL_INDEX_QUERY_FIELDS)
 
     logger.debug('Entitlements added: %s' % permission_query)
     logger.debug('Adding user_restriction_level: %d' % user_restriction_level)
