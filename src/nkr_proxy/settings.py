@@ -70,6 +70,7 @@ class Settings():
         'LOG_LEVEL',
         'REMS_API_KEY',
         'REMS_HOST',
+        'REMS_REJECTER_BOT_USER',
         'CACHE_HOST',
         'CACHE_PORT',
         'CACHE_PASSWORD',

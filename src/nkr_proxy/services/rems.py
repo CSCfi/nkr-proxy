@@ -77,6 +77,7 @@ def get_rems_application_close_info(application):
         - 'manual-closed':          a REMS approver manually closed the application
         - 'manual-rejected':        a REMS approver manually rejected the application
         - 'manual-revoked':         a REMS approver manually closed the application using blacklist
+        - 'automatic-rejected':     REMS rejecter-bot automatically rejected the application
         - 'unknown-closed':         some other, as-of-yet unknown case
     """
     if application['application/state'] == REMS_STATE_SUBMITTED:
@@ -106,8 +107,10 @@ def get_rems_application_close_info(application):
                 close_info['custom_state'] = 'manual-closed'
 
             elif application['application/state'] == REMS_STATE_REJECTED:
-                close_info['custom_state'] = 'manual-rejected'
-
+                if event.get('event/actor') == settings.REMS_REJECTER_BOT_USER:
+                    close_info['custom_state'] = 'automatic-rejected'
+                else:
+                    close_info['custom_state'] = 'manual-rejected'
             elif application['application/state'] == REMS_STATE_REVOKED:
                 close_info['custom_state'] = 'manual-revoked'
 
