@@ -157,7 +157,7 @@ class TestREMSEntitlements(BaseTestClass):
         """
         response = client.get('/api/v1/index_search/select?q=*:*', headers={})
         assert response.status_code == 200, response.data
-        self._assert_response_metadata_level(response, 0)
+        self._assert_response_metadata_level(response, '00')
 
     @responses.activate
     def test_rems_user_not_found(self, client):
@@ -187,7 +187,7 @@ class TestREMSEntitlements(BaseTestClass):
         assert response.status_code == 200, response.data
         assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
 
-        self._assert_response_metadata_level(response, 0)
+        self._assert_response_metadata_level(response, '00')
 
 
     @responses.activate
@@ -218,7 +218,7 @@ class TestREMSEntitlements(BaseTestClass):
         assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
         assert responses.calls[1].request.url == REMS_MY_APPLICATIONS_API
 
-        self._assert_response_metadata_level(response, 0)
+        self._assert_response_metadata_level(response, '00')
 
 
     @responses.activate
@@ -246,7 +246,7 @@ class TestREMSEntitlements(BaseTestClass):
         assert response.status_code == 200, response.data
         assert responses.calls[0].request.url == REMS_ENTITLEMENTS_API
 
-        self._assert_response_metadata_level(response, 10)
+        self._assert_response_metadata_level(response, '10')
 
 
 class TestSolrBasics(BaseTestClass):

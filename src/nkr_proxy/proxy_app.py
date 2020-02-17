@@ -151,7 +151,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     """
     logger.debug('Adding entitlements to query...')
 
-    user_restriction_level = 0
+    user_restriction_level = '00'
 
     for ent in entitlements:
         if ent == LEVEL_10_RESOURCE_ID:
@@ -159,13 +159,13 @@ def generate_query_restrictions(user_id, original_query, entitlements):
             logger.debug('Found level 10 entitlement: %s' % ent)
             logger.info('User %s has level 10 access' % user_id)
             permission_query = 'fq=+filter(%s:10)' % LEVEL_RESTRICTION_FIELD
-            user_restriction_level = 10
+            user_restriction_level = '10'
             break
     else:
         # open metadata access only
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
         logger.info('User %s has no entitlements' % user_id)
-        permission_query = 'fq=+filter(%s:0)' % LEVEL_RESTRICTION_FIELD
+        permission_query = 'fq=+filter(%s:00)' % LEVEL_RESTRICTION_FIELD
 
     search_query = '%s&%s' % (original_query, permission_query)
 
@@ -176,7 +176,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
         search_query += '&fl=%s' % '%2C'.join(ADDITIONAL_INDEX_QUERY_FIELDS)
 
     logger.debug('Entitlements added: %s' % permission_query)
-    logger.debug('Adding user_restriction_level: %d' % user_restriction_level)
+    logger.debug('Adding user_restriction_level: %r' % user_restriction_level)
     return search_query, user_restriction_level
 
 
