@@ -56,10 +56,8 @@ class Settings():
         'NKR_ENV',
         'DEBUG',
         'VERIFY_TLS',
-        'INDEX_URL',
-        'INDEX_IP_LIST',
+        'INDEX_HOSTS',
         'INDEX_MAIN_API',
-        'INDEX_HOSTNAME',
         'INDEX_NAME',
         'INDEX_USERNAME',
         'INDEX_PASSWORD',
@@ -100,7 +98,7 @@ class Settings():
 
         for env_var in self.NKR_PROXY_CONF_VARS:
 
-            if env_var in ('INDEX_ALLOWED_APIS', 'INDEX_IP_LIST'):
+            if env_var in ('INDEX_ALLOWED_APIS', 'INDEX_HOSTS'):
                 env_var_value = get_list_conf_param(env_var)
             elif env_var in ('DEBUG', 'VERIFY_TLS'):
                 env_var_value = get_boolean_conf_param(env_var)
@@ -111,39 +109,8 @@ class Settings():
 
             setattr(self, env_var, env_var_value)
 
-        self._set_index_hosts()
-
-    def _set_index_hosts(self):
-        """
-        self.INDEX_HOSTS will be the list of hosts that the proxy uses to connect to the index,
-        even if there is only one entry. Before request is tried, the list is shuffled, and
-        then the list is tried in order.
-
-        Either of the following must be defined in ENV variables:
-        - INDEX_IP_LIST
-        - INDEX_MAIN_API
-        - INDEX_HOSTNAME
-        OR
-        - INDEX_URL
-        """
-        if self.INDEX_IP_LIST and self.INDEX_MAIN_API and self.INDEX_HOSTNAME:
-
-            logger.debug('Using conf vars INDEX_IP_LIST, INDEX_MAIN_API, and INDEX_HOSTNAME to access index')
-
-            protocol = 'http' if self.NKR_ENV == 'local_development' else 'https'
-
-            self.INDEX_HOSTS = [ '%s://%s%s' % (protocol, ip, self.INDEX_MAIN_API) for ip  in self.INDEX_IP_LIST ]
-
-            self.INDEX_HEADERS = { 'Host': self.INDEX_HOSTNAME }
-
-        elif self.INDEX_URL is not None:
-            logger.debug('Using conf var INDEX_URL to access index')
-            self.INDEX_HOSTS = [ self.INDEX_URL ]
-        else:
-            raise ConfigurationError(
-                'Must define either INDEX_URL in config, or all of the following: '
-                'INDEX_IP_LIST, INDEX_MAIN_API, INDEX_HOSTNAME'
-            )
+        protocol = 'http' if self.NKR_ENV == 'local_development' else 'https'
+        self.INDEX_HOSTS = [ '%s://%s%s' % (protocol, host, self.INDEX_MAIN_API) for host  in self.INDEX_HOSTS ]
 
     def __repr__(self):
         vars_list = []

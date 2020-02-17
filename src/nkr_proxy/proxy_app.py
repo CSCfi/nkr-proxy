@@ -197,8 +197,7 @@ def search_index(user_restriction_level, entitlements, search_query):
         try:
             response = http_request(
                 full_index_url,
-                auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD),
-                headers=settings.INDEX_HEADERS
+                auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
             )
         except (Unauthorized, Forbidden) as e:
             logger.error(e.message)

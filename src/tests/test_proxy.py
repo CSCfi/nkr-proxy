@@ -36,7 +36,7 @@ log tidy and easier to read. If a test fails, uncomment these lines to help debu
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
-FULL_INDEX_URL = '%s/%s/select' % (settings.INDEX_URL, settings.INDEX_NAME)
+FULL_INDEX_URL = '%s/%s/select' % (settings.INDEX_HOSTS[0], settings.INDEX_NAME)
 
 REMS_ENTITLEMENTS_API = 'https://%s/api/entitlements' % settings.REMS_HOST
 REMS_MY_APPLICATIONS_API = 'https://%s/api/my-applications' % settings.REMS_HOST
@@ -148,7 +148,7 @@ class TestREMSEntitlements(BaseTestClass):
 
     @classmethod
     def setup_method(cls):
-        responses.add_passthru(settings.INDEX_URL)
+        responses.add_passthru(settings.INDEX_HOSTS[0])
 
     def test_rems_user_not_provided(self, client):
         """
