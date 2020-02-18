@@ -38,8 +38,23 @@ logger.setLevel(logging.INFO)
 
 FULL_INDEX_URL = '%s/%s/select' % (settings.INDEX_HOSTS[0], settings.INDEX_NAME)
 
+REMS_BLACKLIST_API = 'https://%s/api/blacklist' % settings.REMS_HOST
 REMS_ENTITLEMENTS_API = 'https://%s/api/entitlements' % settings.REMS_HOST
 REMS_MY_APPLICATIONS_API = 'https://%s/api/my-applications' % settings.REMS_HOST
+
+
+def _mock_rems_blacklist_ok():
+    """
+    Helper method: REMS /api/blacklist returns empty list, meaning current test user
+    is not blacklisted for any resource.
+    """
+    responses.add(
+        'GET',
+        REMS_BLACKLIST_API,
+        status=200,
+        content_type='application/json',
+        json=[]
+    )
 
 
 class BaseTestClass():
@@ -167,6 +182,8 @@ class TestREMSEntitlements(BaseTestClass):
         Given user not found in REMS should return public metadata: REMS will
         return an empty list of entitlements.
         """
+        _mock_rems_blacklist_ok()
+
         responses.add(
             'GET',
             REMS_ENTITLEMENTS_API,
@@ -196,6 +213,8 @@ class TestREMSEntitlements(BaseTestClass):
         Should return public metadata, and response headers contains information that
         user does not have any applications.
         """
+        _mock_rems_blacklist_ok()
+
         responses.add(
             'GET',
             REMS_ENTITLEMENTS_API,
@@ -347,6 +366,8 @@ class TestSolrResponseValidation(BaseTestClass):
         In addition the proxy should log plenty of warnings in that case, but that part
         is not tested here.
         """
+        _mock_rems_blacklist_ok()
+
         responses.add(
             'GET',
             REMS_ENTITLEMENTS_API,
