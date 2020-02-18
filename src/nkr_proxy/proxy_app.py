@@ -122,6 +122,14 @@ def index_search(search_handler=None):
                 # user did not have entitlements, but also never any submitted applications
                 response_headers['x-user-access-status'] = 'no-applications'
 
+            # additionally, check if user is currently blacklisted. this information
+            # complements states "automatic-rejected" and "manual-revoked", which imply
+            # the user was recently blacklisted in an application, but since then may
+            # also have been returned access
+            blacklisted = rems.check_user_blacklisted(user_id, LEVEL_10_RESOURCE_ID)
+            if blacklisted.get('blacklisted'):
+                response_headers['x-user-blacklisted'] = blacklisted.get('date', '-')
+
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )

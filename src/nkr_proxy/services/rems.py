@@ -23,6 +23,55 @@ REMS_STATE_REJECTED = 'application.state/rejected'
 REMS_STATE_REVOKED = 'application.state/revoked'
 
 
+def check_user_blacklisted(user_id, resource_id):
+    """
+    Check from REMS /api/blacklist if given user is currently blacklisted for a given resource.
+    User "blacklist status" needs to be checked from this API, instead of relying on application
+    status, since user being removed from the blacklist is not reflected on past applications.
+    """
+    logger.info('Checking blacklist status for user: %s...' % user_id)
+
+    # note: this api needs handler, owner, or reporter role. "logged-in" role i.e. doing the query
+    # as the current user is not permitted.
+    headers = {
+        'Accept': 'application/json',
+        'x-rems-api-key': settings.REMS_API_KEY,
+        'x-rems-user-id': settings.REMS_REJECTER_BOT_USER,
+    }
+
+    try:
+        response = http_request(
+            'https://%s/api/blacklist' % settings.REMS_HOST,
+            data={ 'user': user_id, 'resource': resource_id },
+            method='get',
+            headers=headers
+        )
+    except Exception as e:
+        logger.exception('Could not retrieve blacklist info for user %s: %s' % (user_id, str(e)))
+        # do not make assume user is blacklisted if fetch failed. in worst case,
+        # user tries to make a new application, and is immediately rejected by REMS
+        # if user actually was blacklisted.
+        return { 'blacklisted': False }
+
+    # blacklist entries list only contains entries for requested resource, so if there
+    # is even one hit, we can determine user is blacklisted. note: query should return
+    # entries only for selected user, but iterating list and verifying anyway.
+    for entry in response.json():
+        if entry.get('blacklist/user', {}).get('userid') == user_id:
+            if entry.get('blacklist/resource', {}).get('resource/ext-id') == resource_id:
+
+                logger.info('User %s is blacklisted for resource %s' % (user_id, resource_id))
+
+                return {
+                    'blacklisted': True,
+                    'date': entry.get('blacklist/added-at', '-')
+                }
+
+    logger.info('User %s is not blacklisted for resource %s' % (user_id, resource_id))
+
+    return { 'blacklisted': False }
+
+
 def close_rems_application(user_id, application_id, comment, close_as_user=None):
     """
     Close a single application in REMS by application_id.
@@ -67,7 +116,7 @@ def close_rems_application(user_id, application_id, comment, close_as_user=None)
 
 def get_rems_application_close_info(application):
     """
-    Extract information about the closing-conditions the REMS application:
+    Extract information about the closing-conditions the latest REMS application:
     - state: REMS state value
     - comment: a comment from the closing user, if any, that was given as reason for closing the application
     - custom_state: a custom state value that can be passed to the client so it knows why user has lost access.
@@ -79,13 +128,16 @@ def get_rems_application_close_info(application):
         - 'manual-revoked':         a REMS approver manually closed the application using blacklist
         - 'automatic-rejected':     REMS rejecter-bot automatically rejected the application
         - 'unknown-closed':         some other, as-of-yet unknown case
+
+    Note! Even if last application state is 'automatic-rejected' or 'manual-revoked', which implies
+    user was blacklisted on that application, it is still possible that the user was later
+    removed from blacklist.
     """
     if application['application/state'] == REMS_STATE_SUBMITTED:
         # currently there is a tiny delay in behaviour of auto-approve bot.
         # if the latest application is still in submitted state, let the
         # client know.
         return { 'custom_state': 'submitted' }
-
 
     # events are in chronological order, so reverse list to get latest events first
     for event in reversed(application.get('application/events', [])):
