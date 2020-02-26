@@ -28,11 +28,17 @@ def check_user_blacklisted(user_id, resource_id):
     Check from REMS /api/blacklist if given user is currently blacklisted for a given resource.
     User "blacklist status" needs to be checked from this API, instead of relying on application
     status, since user being removed from the blacklist is not reflected on past applications.
+
+    Note: The REMS "logged-in" role is not enough for this API (doing the query as the applicant,
+    which is provided in parameter user_id). Instead, his API needs one of the following REMS
+    roles for user in header x-rems-user-id:
+    - handler
+    - owner
+    - reporter role
+    -> using REMS_REJECTER_BOT_USER, since that user can access the API
     """
     logger.info('Checking blacklist status for user: %s...' % user_id)
 
-    # note: this api needs handler, owner, or reporter role. "logged-in" role i.e. doing the query
-    # as the current user is not permitted.
     headers = {
         'Accept': 'application/json',
         'x-rems-api-key': settings.REMS_API_KEY,
@@ -48,7 +54,7 @@ def check_user_blacklisted(user_id, resource_id):
         )
     except Exception as e:
         logger.exception('Could not retrieve blacklist info for user %s: %s' % (user_id, str(e)))
-        # do not make assume user is blacklisted if fetch failed. in worst case,
+        # do not assume user is blacklisted if fetch failed. in worst case,
         # user tries to make a new application, and is immediately rejected by REMS
         # if user actually was blacklisted.
         return { 'blacklisted': False }
