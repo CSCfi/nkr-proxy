@@ -11,6 +11,14 @@ from nkr_proxy.cache import cache
 from nkr_proxy.services import rems
 from nkr_proxy.settings import settings
 
+"""
+Script to be executed in cron to periodically close REMS applications of users who have
+been inactive for too long (=no searched in specified timeframe).
+
+Note: For development, execute this script in the following manner:
+$ cd nkr-proxy/src
+$ CONFIG_PATH=/path/to/config.sh python -m nkr_proxy.cron.check_session_expire
+"""
 
 logger = logging.getLogger(__name__)
 formatter = logging.Formatter(fmt='%(asctime)s %(process)d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S.%03dZ')
