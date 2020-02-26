@@ -65,6 +65,32 @@ def close_rems_application(user_id, application_id, comment, close_as_user=None)
     return True
 
 
+def get_all_rems_applications(application_state):
+    """
+    Get all applications in requested state.
+
+    The applications are retrieved as user REMS_REJECTER_BOT_USER, since it is a handler,
+    and has access to all applications. The application is closed as the applicant user.
+    """
+    logger.debug('Getting all applications in state: %s...' % application_state)
+
+    headers = {
+        'Accept': 'application/json',
+        'x-rems-api-key': settings.REMS_API_KEY,
+        'x-rems-user-id': settings.REMS_REJECTER_BOT_USER
+    }
+
+    try:
+        response = http_request(
+            'https://%s/api/applications?query=state:%s' % (settings.REMS_HOST, application_state),
+            headers=headers
+        )
+    except:
+        raise ServiceNotAvailable()
+
+    return response.json()
+
+
 def get_rems_application_close_info(application):
     """
     Extract information about the closing-conditions the REMS application:

@@ -1,6 +1,7 @@
 # Copyright 2019 Ministry of Education and Culture, Finland
 # SPDX-License-Identifier: MIT
 
+from datetime import datetime
 import logging
 import logging.handlers
 import time
@@ -27,6 +28,10 @@ file_handler = logging.handlers.WatchedFileHandler(settings.CRON_SESSION_EXPIRE_
 file_handler.setFormatter(formatter)
 logger.addHandler(file_handler)
 logger.setLevel(settings.LOG_LEVEL)
+
+
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+EPOCH = datetime(1970, 1, 1)
 
 
 class Stats():
@@ -143,6 +148,43 @@ def close_rems_application(user_id):
     return application_states
 
 
+def track_registered_only_users():
+    """
+    Retrieve all approved applications from REMS, and if the applicant is not already
+    in activity tracking, add the applicant there, so that the session is closed
+    approriately when the session expires.
+
+    It is possible that detected users would make searches later, but in that case
+    their last-active timestamp will simply get updated.
+    """
+    logger.info('Checking for users who have registered but not yet in session tracking...')
+
+    n_registered_only_users = 0
+
+    applications = rems.get_all_rems_applications('approved')
+
+    for app in applications:
+
+        user_id = app['application/applicant']['userid']
+
+        if cache.get(user_id):
+            # user is already tracked - do nothing
+            continue
+
+        logger.debug('User %s is registered but not tracked' % user_id)
+
+        # app is automatically approved as it is submitted
+        date_submitted = app['application/first-submitted']
+
+        epoch_time = (datetime.strptime(date_submitted, DATE_FORMAT) - EPOCH).total_seconds()
+
+        cache.set('user-last-active:%s' % user_id, round(epoch_time))
+
+        n_registered_only_users += 1
+
+    logger.debug('Loaded %d registerd-only users into session tracking' % n_registered_only_users)
+
+
 def check_and_close_expired_sessions(session_max_age_seconds):
     """
     Check all users' cached session activity, and close their REMS application if
@@ -151,6 +193,8 @@ def check_and_close_expired_sessions(session_max_age_seconds):
     stats = Stats()
     logger.info('//---------------------------------------------------------------')
     logger.info('Begin session checking...')
+
+    track_registered_only_users()
 
     for key in cache.scan_iter('user-last-active:*'):
 
