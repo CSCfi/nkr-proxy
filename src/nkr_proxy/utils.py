@@ -12,14 +12,16 @@ from nkr_proxy.settings import settings
 logger = logging.getLogger(__name__)
 
 
-def http_request(*args, method='get', **kwargs):
+def http_request(*args, methods=['get','post'], **kwargs):
     if settings.DEBUG:
         logger.debug('HTTP request begin with data:')
         # logger.debug('args: %r' % args)
         # logger.debug('kwargs: %r' % kwargs)
 
     try:
-        response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
+        for method in methods:
+            if method == 'get' or method == 'post':
+                response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
     except Exception as e:
         logger.exception('HTTP request failed (%s): %s' % (type(e), e))
         raise
