@@ -59,7 +59,7 @@ def index_search_root(search_handler=None):
     raise BadRequest('you are probably looking for /api/v1/index_search/<search_handler>')
 
 
-@bp.route('/api/v1/index_search/<path:search_handler>', methods=['GET'])
+@bp.route('/api/v1/index_search/<path:search_handler>', methods=['GET','POST'])
 def index_search(search_handler=None):
     """
     Entrypoint for searching index withing the limits for entitlements
