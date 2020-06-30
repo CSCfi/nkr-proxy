@@ -78,7 +78,11 @@ def index_search(search_handler=None):
         raise BadRequest('Invalid search handler. Valid search handlers are: %s' % settings.INDEX_ALLOWED_APIS)
 
     user_id = request.headers.get('x-user-id', None)
-    query_string = request.query_string.decode('utf-8')
+
+    if request.method == 'GET':
+        query_string = request.query_string.decode('utf-8')
+    else:
+        query_string = request.values
 
     if not query_string:
         raise BadRequest('search query is required')
