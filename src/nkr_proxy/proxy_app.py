@@ -79,6 +79,8 @@ def index_search(search_handler=None):
 
     user_id = request.headers.get('x-user-id', None)
 
+    query_string = ""
+
     if request.method == 'GET':
         query_string = request.query_string.decode('utf-8')
     else:
