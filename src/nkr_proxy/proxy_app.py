@@ -82,9 +82,10 @@ def index_search(search_handler=None):
     query_string = ""
     method = ""
 
-    if request.method == 'GET':
+    if request.method == 'GET' or request.method == 'POST':
         query_string = request.query_string.decode('utf-8')
-        method = 'get'
+        method = request.method
+        logger.debug('Query string: %s' query_string)
     
     #if request.method == 'POST':
         #query_string = request.values
