@@ -79,14 +79,15 @@ def index_search(search_handler=None):
 
     user_id = request.headers.get('x-user-id', None)
 
-    #query_string = ""
+    query_string = ""
+    method = ""
 
-    #if request.method == 'GET':
-        #query_string = request.query_string.decode('utf-8')
-    #else:
+    if request.method == 'GET':
+        query_string = request.query_string.decode('utf-8')
+        method = 'get'
+    
+    #if request.method == 'POST':
         #query_string = request.values
-
-    query_string = request.query_string.decode('utf-8')
 
     if not query_string:
         raise BadRequest('search query is required')
@@ -142,7 +143,7 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
-    index_results = search_index(user_restriction_level, entitlements, search_query)
+    index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
     response = make_response(jsonify(index_results), 200)
 
@@ -196,7 +197,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 
-def search_index(user_restriction_level, entitlements, search_query):
+def search_index(user_restriction_level, entitlements, search_query, method):
     """
     Execute search to index.
     """
@@ -213,6 +214,7 @@ def search_index(user_restriction_level, entitlements, search_query):
         try:
             response = http_request(
                 full_index_url,
+                method,
                 auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
             )
         except (Unauthorized, Forbidden) as e:
