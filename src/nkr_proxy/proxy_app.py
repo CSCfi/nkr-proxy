@@ -85,10 +85,10 @@ def index_search(search_handler=None):
     if request.method == 'GET':
         query_string = request.query_string.decode('utf-8')
         method = request.method
-        logger.debug('Query string: %s' % query_string)
     
-    #if request.method == 'POST':
-        #query_string = request.values
+    if request.method == 'POST':
+        args = request.args
+        logger.debug('Post query: %s' % args)
 
     if not query_string:
         raise BadRequest('search query is required')
