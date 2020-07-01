@@ -85,7 +85,7 @@ def index_search(search_handler=None):
     if request.method == 'GET':
         query_string = request.query_string.decode('utf-8')
         method = request.method
-        logger.debug('Query string: %s' query_string)
+        logger.debug('Query string: %s' % query_string)
     
     #if request.method == 'POST':
         #query_string = request.values
