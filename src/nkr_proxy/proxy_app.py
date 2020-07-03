@@ -89,8 +89,8 @@ def index_search(search_handler=None):
     if request.method == 'POST':
         raw_data = request.get_data()
         logger.debug('Raw data: %s' % raw_data)
-        request_data = request.form.to_dict()
-        logger.debug('Post query: %s' % request_data)
+        query_string = raw_data
+        #request_data = request.form.to_dict()
         #for k,v in request_data.items():
             #if k == 'q':
                 #query_string = query_string + str(k) + '=' + str(v)
