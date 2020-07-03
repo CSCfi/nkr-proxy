@@ -89,6 +89,13 @@ def index_search(search_handler=None):
     if request.method == 'POST':
         request_data = request.form.to_dict()
         logger.debug('Post query: %s' % request_data)
+        for k,v in request_data.items():
+            if k == 'q':
+                query_string = query_string + str(k) + '=' + str(v)
+            else:
+                query_string = query_string + str(k) + '=' + str(v) + '&'
+                
+        logger.debug('Post query string: %s' % query_string)
 
     if not query_string:
         raise BadRequest('search query is required')
