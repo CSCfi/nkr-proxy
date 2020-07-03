@@ -90,12 +90,7 @@ def index_search(search_handler=None):
         raw_data = request.get_data()
         logger.debug('Raw data: %s' % raw_data)
         query_string = raw_data.decode('utf-8')
-        #request_data = request.form.to_dict()
-        #for k,v in request_data.items():
-            #if k == 'q':
-                #query_string = query_string + str(k) + '=' + str(v)
-            #else:
-                #query_string = query_string + str(k) + '=' + str(v) + '&'
+        method = request.method
         
     if not query_string:
         raise BadRequest('search query is required')
@@ -215,16 +210,29 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
     for n_retry, index_host in enumerate(settings.INDEX_HOSTS):
 
-        full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
+        #full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
 
-        logger.debug(full_index_url)
+        #logger.debug(full_index_url)
 
         try:
-            response = http_request(
-                full_index_url,
-                method,
-                auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
-            )
+
+            if method == 'GET':
+                full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
+                response = http_request(
+                    full_index_url,
+                    method,
+                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
+                )
+                logger.debug(full_index_url)
+            if method == 'POST':
+                full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
+                response = http_request(
+                    full_index_url,
+                    method,
+                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD),
+                    search_query
+                )
+                logger.debug(full_index_url)     
         except (Unauthorized, Forbidden) as e:
             logger.error(e.message)
             raise ServiceNotAvailable()
