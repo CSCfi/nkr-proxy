@@ -87,6 +87,8 @@ def index_search(search_handler=None):
         method = request.method
     
     if request.method == 'POST':
+        raw_data = request.get_data()
+        logger.debug('Raw data: %s' % raw_data)
         request_data = request.form.to_dict()
         logger.debug('Post query: %s' % request_data)
         #for k,v in request_data.items():
@@ -94,10 +96,7 @@ def index_search(search_handler=None):
                 #query_string = query_string + str(k) + '=' + str(v)
             #else:
                 #query_string = query_string + str(k) + '=' + str(v) + '&'
-                
-        logger.debug('Request url: %s' % request.url)
-        logger.debug('Raw data: %s' % request.get_data())
-
+        
     if not query_string:
         raise BadRequest('search query is required')
 
