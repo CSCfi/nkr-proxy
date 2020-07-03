@@ -96,7 +96,7 @@ def index_search(search_handler=None):
                 #query_string = query_string + str(k) + '=' + str(v) + '&'
                 
         logger.debug('Request url: %s' % request.url)
-        logger.debug('Post data: %s' % request.data)
+        logger.debug('Raw data: %s' % request.get_data())
 
     if not query_string:
         raise BadRequest('search query is required')
