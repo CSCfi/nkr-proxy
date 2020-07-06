@@ -59,7 +59,7 @@ def index_search_root(search_handler=None):
     raise BadRequest('you are probably looking for /api/v1/index_search/<search_handler>')
 
 
-@bp.route('/api/v1/index_search/<path:search_handler>', methods=['get','post'])
+@bp.route('/api/v1/index_search/<path:search_handler>', methods=['GET','POST'])
 def index_search(search_handler=None):
     """
     Entrypoint for searching index withing the limits for entitlements
@@ -85,6 +85,7 @@ def index_search(search_handler=None):
     if request.method == 'get':
         query_string = request.query_string.decode('utf-8')
         method = request.method
+        logger.debug('Get request query string %s', query_string)
     
     if request.method == 'post':
         raw_data = request.get_data()
@@ -93,6 +94,7 @@ def index_search(search_handler=None):
         method = request.method
         
     if not query_string:
+        logger.debug('Could not find query_string')
         raise BadRequest('search query is required')
 
     if settings.DEBUG and request.json and 'debug_entitlements' in request.json:
@@ -145,6 +147,9 @@ def index_search(search_handler=None):
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
+
+    logger.debug('Search query: %s', search_query)
+    logger.debug('User restriction level: %s', user_restriction_level)
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
