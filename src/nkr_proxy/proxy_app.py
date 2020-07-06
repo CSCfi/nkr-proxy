@@ -154,7 +154,7 @@ def index_search(search_handler=None):
 
     logger.debug('Original search query: %s?%s', search_handler, query_string)
 
-    index_results = search_index(user_restriction_level, entitlements, search_query, method)
+    index_results = search_index(user_restriction_level, entitlements, search_query, method, request_content_type)
 
     response = make_response(jsonify(index_results), 200)
 
@@ -208,7 +208,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 
-def search_index(user_restriction_level, entitlements, search_query, method):
+def search_index(user_restriction_level, entitlements, search_query, method, request_content_type):
     """
     Execute search to index.
     """
@@ -239,6 +239,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                     method,
                     full_index_url,
                     search_query,
+                    request_content_type,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug(full_index_url)     
