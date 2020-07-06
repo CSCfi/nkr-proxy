@@ -228,8 +228,8 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                 response = http_request(
                     full_index_url,
                     method,
-                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD),
-                    search_query
+                    search_query,
+                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug(full_index_url)     
         except (Unauthorized, Forbidden) as e:
