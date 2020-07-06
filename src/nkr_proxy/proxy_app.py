@@ -91,7 +91,7 @@ def index_search(search_handler=None):
         raw_data = request.get_data()
         logger.debug('Raw data: %s' % raw_data)
         query_string = raw_data.decode('utf-8')
-        method = request.method.lower
+        method = request.method.lower()
         
     if not query_string:
         logger.debug('Could not find query_string')
@@ -221,6 +221,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
         try:
             if method == 'get':
+                logger.debug('Method: %s', method)
                 full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
                 response = http_request(
                     method,
@@ -229,6 +230,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                 )
                 logger.debug(full_index_url)
             if method == 'post':
+                logger.debug('Method: %s', method)
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
                 response = http_request(
                     method,
