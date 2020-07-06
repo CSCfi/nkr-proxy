@@ -82,16 +82,16 @@ def index_search(search_handler=None):
     query_string = ""
     method = ""
 
-    if request.method == 'get':
+    if request.method == 'GET':
         query_string = request.query_string.decode('utf-8')
-        method = request.method
+        method = request.method.lower()
         logger.debug('Get request query string %s', query_string)
     
-    if request.method == 'post':
+    if request.method == 'POST':
         raw_data = request.get_data()
         logger.debug('Raw data: %s' % raw_data)
         query_string = raw_data.decode('utf-8')
-        method = request.method
+        method = request.method.lower
         
     if not query_string:
         logger.debug('Could not find query_string')
