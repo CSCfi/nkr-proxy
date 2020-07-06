@@ -224,7 +224,6 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
 
         try:
             if method == 'get':
-                logger.debug('Method: %s', method)
                 full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
                 response = http_request(
                     method,
@@ -233,13 +232,12 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 )
                 logger.debug(full_index_url)
             if method == 'post':
-                logger.debug('Method: %s', method)
-                full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
+                full_index_url = '%s/%s/select?' % (index_host, settings.INDEX_NAME)
                 response = http_request(
                     method,
                     full_index_url,
                     search_query,
-                    request_content_type,
+                    #request_content_type,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug(full_index_url)     
