@@ -79,6 +79,10 @@ def index_search(search_handler=None):
 
     user_id = request.headers.get('x-user-id', None)
 
+    request_content_type = request.content_type
+
+    logger.debug('Content type: %s', request_content_type)
+
     query_string = ""
     method = ""
 
@@ -148,8 +152,7 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
-    logger.debug('Search query: %s', search_query)
-    logger.debug('User restriction level: %s', user_restriction_level)
+    logger.debug('Original search query: %s?%s', search_handler, query_string)
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
