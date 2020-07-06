@@ -231,8 +231,8 @@ def search_index(user_restriction_level, entitlements, search_query, method):
             if method == 'post':
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
                 response = http_request(
-                    full_index_url,
                     method,
+                    full_index_url,
                     search_query,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
