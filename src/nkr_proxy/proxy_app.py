@@ -59,7 +59,7 @@ def index_search_root(search_handler=None):
     raise BadRequest('you are probably looking for /api/v1/index_search/<search_handler>')
 
 
-@bp.route('/api/v1/index_search/<path:search_handler>', methods=['GET','POST'])
+@bp.route('/api/v1/index_search/<path:search_handler>', methods=['get','post'])
 def index_search(search_handler=None):
     """
     Entrypoint for searching index withing the limits for entitlements
@@ -82,11 +82,11 @@ def index_search(search_handler=None):
     query_string = ""
     method = ""
 
-    if request.method == 'GET':
+    if request.method == 'get':
         query_string = request.query_string.decode('utf-8')
         method = request.method
     
-    if request.method == 'POST':
+    if request.method == 'post':
         raw_data = request.get_data()
         logger.debug('Raw data: %s' % raw_data)
         query_string = raw_data.decode('utf-8')
@@ -215,8 +215,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
         #logger.debug(full_index_url)
 
         try:
-
-            if method == 'GET':
+            if method == 'get':
                 full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
                 response = http_request(
                     full_index_url,
@@ -224,7 +223,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug(full_index_url)
-            if method == 'POST':
+            if method == 'post':
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
                 response = http_request(
                     full_index_url,
