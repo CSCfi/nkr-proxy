@@ -81,7 +81,9 @@ def index_search(search_handler=None):
 
     request_content_type = request.content_type
 
-    logger.debug('Content type: %s', request_content_type)
+    request_headers = {}
+    request_headers = request.headers
+    logger.debug('Request headers: %s', request_headers)
 
     query_string = ""
     method = ""
