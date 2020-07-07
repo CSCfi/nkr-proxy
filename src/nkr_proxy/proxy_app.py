@@ -89,16 +89,13 @@ def index_search(search_handler=None):
     if request.method == 'GET':
         query_string = request.query_string.decode('utf-8')
         method = request.method.lower()
-        logger.debug('Get request query string %s', query_string)
     
     if request.method == 'POST':
         raw_data = request.get_data()
-        logger.debug('Raw data: %s' % raw_data)
         query_string = raw_data.decode('utf-8')
         method = request.method.lower()
         
     if not query_string:
-        logger.debug('Could not find query_string')
         raise BadRequest('search query is required')
 
     if settings.DEBUG and request.json and 'debug_entitlements' in request.json:
@@ -151,8 +148,6 @@ def index_search(search_handler=None):
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
-
-    logger.debug('Original search query: %s?%s', search_handler, query_string)
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method, request_content_type)
 
