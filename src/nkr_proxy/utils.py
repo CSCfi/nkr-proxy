@@ -23,8 +23,8 @@ def http_request(method='get', *args, **kwargs):
             response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
 
         if method == 'post':
-            #headers = {'Content-Type': application/x-www-form-urlencoded}
-            response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
+            headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+            response = getattr(requests, method)(verify=settings.VERIFY_TLS, headers=headers, *args, **kwargs)
             content_type = response.headers['Content-Type']
             logger.debug('Content-Type: %s', content_type)
 
