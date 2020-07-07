@@ -19,7 +19,15 @@ def http_request(method='get', *args, **kwargs):
         # logger.debug('kwargs: %r' % kwargs)
 
     try:
-        response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
+        if method == 'get':
+            response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
+
+        if method == 'post':
+            headers = {'Content-Type': application/x-www-form-urlencoded}
+            response = getattr(requests, method)(verify=settings.VERIFY_TLS, headers=headers, *args, **kwargs)
+            content_type = response.headers['Content-Type']
+            logger.debug('Content-Type: %s', content_type)
+
     except Exception as e:
         logger.exception('HTTP request failed (%s): %s' % (type(e), e))
         raise
