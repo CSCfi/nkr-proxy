@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 def http_request(method='get', *args, **kwargs):
     if settings.DEBUG:
         logger.debug('HTTP request begin with data:')
-        logger.debug('args: %r' % args)
-        logger.debug('kwargs: %r' % kwargs)
+        #logger.debug('args: %r' % args)
+        #logger.debug('kwargs: %r' % kwargs)
 
     try:
         if method == 'get':
@@ -24,7 +24,7 @@ def http_request(method='get', *args, **kwargs):
 
         if method == 'post':
             #headers = {'Content-Type': application/x-www-form-urlencoded}
-            response = getattr(requests, method)(verify=settings.VERIFY_TLS, headers=headers, *args, **kwargs)
+            response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
             content_type = response.headers['Content-Type']
             logger.debug('Content-Type: %s', content_type)
 
