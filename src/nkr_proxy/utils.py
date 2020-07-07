@@ -23,7 +23,7 @@ def http_request(method='get', *args, **kwargs):
             response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
 
         if method == 'post':
-            headers = {'Accept-Encoding': {'gzip', 'deflate'}, 'Content-Type': 'application/x-www-form-urlencoded'}
+            headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
             response = getattr(requests, method)(verify=settings.VERIFY_TLS, headers=headers, *args, **kwargs)
             response_headers = response.headers
             logger.debug('Response headers: %s', response_headers)
