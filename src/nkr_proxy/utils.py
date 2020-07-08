@@ -12,7 +12,7 @@ from nkr_proxy.settings import settings
 logger = logging.getLogger(__name__)
 
 
-def http_request(*args, method='get', **kwargs):
+def http_request(method='get', *args, **kwargs):
     if settings.DEBUG:
         logger.debug('HTTP request begin with data:')
         #logger.debug('args: %r' % args)
