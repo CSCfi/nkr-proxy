@@ -12,11 +12,11 @@ from nkr_proxy.settings import settings
 logger = logging.getLogger(__name__)
 
 
-def http_request(method='get', *args, **kwargs):
+def http_request(*args, method='get', **kwargs):
     if settings.DEBUG:
         logger.debug('HTTP request begin with data:')
-        logger.debug('args: %s' % args)
-        logger.debug('kwargs: %s' % kwargs)
+        logger.debug('args: ' *args)
+        logger.debug('kwargs: ' **kwargs)
 
     try:
         if method == 'get':
