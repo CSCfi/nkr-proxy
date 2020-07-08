@@ -233,8 +233,8 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
-                    method,
                     full_index_url,
+                    method,
                     search_query,
                     headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)

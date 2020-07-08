@@ -23,7 +23,7 @@ def http_request(*args, method='get', **kwargs):
             response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
 
         if method == 'post':
-            response = getattr(requests, method)(verify=settings.VERIFY_TLS, *args, **kwargs)
+            response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
             response_headers = response.headers
             logger.debug('Response headers: %s', response_headers)
 
