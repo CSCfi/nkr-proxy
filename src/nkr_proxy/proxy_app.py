@@ -225,7 +225,7 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
                 response = http_request(
                     full_index_url,
-                    method,
+                    #method,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug(full_index_url)
