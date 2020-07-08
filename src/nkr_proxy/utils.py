@@ -15,8 +15,8 @@ logger = logging.getLogger(__name__)
 def http_request(method='get', *args, **kwargs):
     if settings.DEBUG:
         logger.debug('HTTP request begin with data:')
-        #logger.debug('args: %r' % args)
-        #logger.debug('kwargs: %r' % kwargs)
+        logger.debug('args: %s' % args)
+        logger.debug('kwargs: %s' % kwargs)
 
     try:
         if method == 'get':
