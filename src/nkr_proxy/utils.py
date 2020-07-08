@@ -15,10 +15,11 @@ logger = logging.getLogger(__name__)
 def http_request(*args, method='get', **kwargs):
     if settings.DEBUG:
         logger.debug('HTTP request begin with data:')
-        logger.debug('args: ' args)
-        logger.debug('kwargs: ' kwargs)
+        logger.debug('args: %s' % args)
+        logger.debug('kwargs: %s' % kwargs)
 
     try:
+        logger.debug('Method: %s', % method)
         if method == 'get':
             response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
 
