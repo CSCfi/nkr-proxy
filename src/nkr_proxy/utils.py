@@ -19,7 +19,7 @@ def http_request(*args, method='get', **kwargs):
         logger.debug('kwargs: %s' % kwargs)
 
     try:
-        logger.debug('Method: %s', % method)
+        logger.debug('Method: %s' % method)
         if method == 'get':
             response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
 
