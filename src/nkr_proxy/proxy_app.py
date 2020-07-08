@@ -236,8 +236,8 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                     method,
                     full_index_url,
                     search_query,
+                    headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
-                    headers = headers
                 )
                 logger.debug(full_index_url)     
         except (Unauthorized, Forbidden) as e:
