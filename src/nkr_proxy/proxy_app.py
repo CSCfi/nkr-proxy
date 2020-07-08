@@ -236,7 +236,7 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                     method,
                     full_index_url,
                     search_query,
-                    headers,
+                    headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug(full_index_url)     
