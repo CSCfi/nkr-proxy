@@ -235,7 +235,7 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 response = http_request(
                     full_index_url,
                     method=method,
-                    data = search_query,
+                    data=search_query,
                     headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
@@ -301,7 +301,7 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
 
     resp_json['response']['docs'] = filtered_results
 
-    logger.debug('Response json: %s' % resp_json)
+    #logger.debug('Response json: %s' % resp_json)
 
     return resp_json
 
