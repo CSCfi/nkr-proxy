@@ -25,10 +25,6 @@ def http_request(*args, method='get', **kwargs):
 
         if method == 'post':
             response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
-            response_headers = response.headers
-            response_content = response.text
-            logger.debug('Response headers: %s' % response_headers)
-            logger.debug('Response content: %s' % response_content)
 
     except Exception as e:
         logger.exception('HTTP request failed (%s): %s' % (type(e), e))
