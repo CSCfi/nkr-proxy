@@ -301,6 +301,8 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
 
     resp_json['response']['docs'] = filtered_results
 
+    logger.debug('Response json: %s' % resp_json)
+
     return resp_json
 
 
