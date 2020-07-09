@@ -232,7 +232,7 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 )
                 logger.debug(full_index_url)
             if method == 'post':
-                full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
+                full_index_url = '%s/%s/' % (index_host, settings.INDEX_NAME)
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
                     full_index_url,
