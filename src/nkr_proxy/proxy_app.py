@@ -153,6 +153,8 @@ def index_search(search_handler=None):
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method, request_content_type)
 
+    logger.debug('Index results %s' % index_results)
+
     response = make_response(jsonify(index_results), 200)
 
     for h, v in response_headers.items():
