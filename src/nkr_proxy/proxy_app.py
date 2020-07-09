@@ -239,7 +239,8 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                     headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
-                logger.debug(full_index_url)     
+                logger.debug('Url: %s' % full_index_url)     
+                logger.debug('Search query: %s' % search_query)
         except (Unauthorized, Forbidden) as e:
             logger.error(e.message)
             raise ServiceNotAvailable()
