@@ -235,7 +235,7 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 response = http_request(
                     full_index_url,
                     method=method,
-                    data=post_search_query,
+                    #data=post_search_query,
                     headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
