@@ -310,7 +310,7 @@ class TestSolrBasics(BaseTestClass):
         response = client.post('/api/v1/index_search/invalid?q=test')
         assert response.status_code == 400
 
-        response = client.post('/api/v1/index_search/select?',fl='q=test')
+        response = client.post('/api/v1/index_search/select?','fl=','q=test')
         assert response.status_code == 200, 'tried select api. response: %s' % (response.data)
 
 
