@@ -310,7 +310,7 @@ class TestSolrBasics(BaseTestClass):
         response = client.post('/api/v1/index_search/invalid?q=test')
         assert response.status_code == 400
 
-        response = client.post('/api/v1/index_search/select?','fl=','q=test')
+        response = client.post('/api/v1/index_search/select?','fl=*&spellcheck=false&facet=true&facet.limit=30&f.building.facet.limit=-1&facet.field={!ex=building_filter}building&facet.field={!ex=format_ext_str_mv_filter}format_ext_str_mv&facet.field={!ex=source_available_str_mv_filter}source_available_str_mv&facet.field={!ex=online_boolean_filter}online_boolean&facet.field={!ex=peer_reviewed_boolean_filter}peer_reviewed_boolean&f.format_ext_str_mv.facet.limit=-1&facet.sort=count&f.usage_rights_str_mv.facet.sort=index&f.format.facet.limit=-1&f.sector_str_mv.facet.limit=-1&f.category_str_mv.facet.limit=-1&facet.mincount=1&sort=score+desc,+first_indexed+desc&hl=false&onCampus=&fq=-merged_child_boolean:true&wt=json&json.nl=arrarr&rows=20&start=0&q=mattila')
         assert response.status_code == 200, 'tried select api. response: %s' % (response.data)
 
 
