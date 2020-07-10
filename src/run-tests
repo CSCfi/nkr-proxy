@@ -13,7 +13,7 @@ if [ "$EUID" -ne 0 ]; then
     # probably would be better to add nkr-user to relevant groups in
     # order to be able to run solr commands.
     echo "Please run tests as root. Setting up tests requires executing solr commands."
-    exit 1
+    #exit 1
 fi
 
 if [ $# -eq 0 ]; then
