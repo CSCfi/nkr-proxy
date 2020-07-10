@@ -234,9 +234,9 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
                     full_index_url,
-                    method=method,
+                    #method=method,
                     #data=post_search_query,
-                    headers=headers,
+                    #headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug('Url: %s' % full_index_url)     
