@@ -212,15 +212,15 @@ def search_index(user_restriction_level, entitlements, search_query, method):
         try:
             if method == 'get':
                 full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
+                logger.debug('Url: %s' % full_index_url)
                 response = http_request(
                     full_index_url,
                     method=method,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
-                logger.debug('Url: %s' % full_index_url)
-                logger.debug('Search query: %s' % search_query)
             if method == 'post':
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
+                logger.debug('Url: %s' % full_index_url)
                 post_search_query = search_query.lstrip('select?')
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
@@ -229,9 +229,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                     data=post_search_query,
                     headers=headers,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
-                )
-                logger.debug('Url: %s' % full_index_url)     
-                logger.debug('Search query: %s' % post_search_query)
+                )     
         except (Unauthorized, Forbidden) as e:
             logger.error(e.message)
             raise ServiceNotAvailable()

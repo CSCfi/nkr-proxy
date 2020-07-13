@@ -18,7 +18,6 @@ def http_request(*args, method='get', **kwargs):
 
     try:
         response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
-
     except Exception as e:
         logger.exception('HTTP request failed (%s): %s' % (type(e), e))
         raise
