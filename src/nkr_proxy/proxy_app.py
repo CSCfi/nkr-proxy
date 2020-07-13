@@ -79,12 +79,6 @@ def index_search(search_handler=None):
 
     user_id = request.headers.get('x-user-id', None)
 
-    request_content_type = request.content_type
-
-    #request_headers = {}
-    #request_headers = request.headers
-    #logger.debug('Request headers: %s', request_headers)
-
     query_string = ""
     method = ""
 
@@ -151,7 +145,7 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
-    index_results = search_index(user_restriction_level, entitlements, search_query, method, request_content_type)
+    index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
     response = make_response(jsonify(index_results), 200)
 
@@ -205,7 +199,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 
-def search_index(user_restriction_level, entitlements, search_query, method, request_content_type):
+def search_index(user_restriction_level, entitlements, search_query, method):
     """
     Execute search to index.
     """
@@ -215,10 +209,6 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
 
     for n_retry, index_host in enumerate(settings.INDEX_HOSTS):
 
-        #full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
-
-        #logger.debug(full_index_url)
-
         try:
             if method == 'get':
                 full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
@@ -227,7 +217,8 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                     method=method,
                     auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
-                logger.debug(full_index_url)
+                logger.debug('Url: %s' % full_index_url)
+                logger.debug('Search query: %s' % post_search_query)
             if method == 'post':
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
                 # take substring of search_query in order to ignore select? in the beginning of the query
