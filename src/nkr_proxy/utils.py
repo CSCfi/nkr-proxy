@@ -17,7 +17,6 @@ def http_request(*args, method='get', **kwargs):
         logger.debug('HTTP request begin with data:')
 
     try:
-        logger.debug('Method: %s' % method)
         response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
 
     except Exception as e:

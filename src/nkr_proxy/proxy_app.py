@@ -221,8 +221,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                 logger.debug('Search query: %s' % post_search_query)
             if method == 'post':
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
-                # take substring of search_query in order to ignore select? in the beginning of the query
-                post_search_query = search_query[7:]
+                post_search_query = search_query.lstrip('select?')
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
                     full_index_url,
@@ -293,8 +292,6 @@ def search_index(user_restriction_level, entitlements, search_query, method):
     logger.debug('Received %d verified results from index' % len(filtered_results))
 
     resp_json['response']['docs'] = filtered_results
-
-    #logger.debug('Response json: %s' % resp_json)
 
     return resp_json
 
