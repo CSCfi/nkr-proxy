@@ -234,11 +234,11 @@ def search_index(user_restriction_level, entitlements, search_query, method, req
                 post_search_query = search_query[7:]
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
-                    #full_index_url,
+                    full_index_url,
                     method=method,
-                    #data=post_search_query,
-                    #headers=headers,
-                    #auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
+                    data=post_search_query,
+                    headers=headers,
+                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
                 )
                 logger.debug('Url: %s' % full_index_url)     
                 logger.debug('Search query: %s' % post_search_query)

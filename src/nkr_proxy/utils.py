@@ -20,11 +20,7 @@ def http_request(*args, method='get', **kwargs):
 
     try:
         logger.debug('Method: %s' % method)
-        if method == 'get':
-            response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
-
-        if method == 'post':
-            response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
+        response = getattr(requests, method)(*args, verify=settings.VERIFY_TLS, **kwargs)
 
     except Exception as e:
         logger.exception('HTTP request failed (%s): %s' % (type(e), e))
