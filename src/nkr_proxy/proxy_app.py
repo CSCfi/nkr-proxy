@@ -222,6 +222,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
                 full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
                 logger.debug('Url: %s' % full_index_url)
                 post_search_query = search_query.lstrip('select?')
+                logger.debug('Payload: %s' % post_search_query)
                 headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
                 response = http_request(
                     full_index_url,
