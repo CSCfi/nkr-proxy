@@ -3,6 +3,8 @@ nkr-proxy
 
 Authorization proxy standing between a REMS instance and a database.
 
+Accepted request methods are GET and POST.
+
 License
 --------
 

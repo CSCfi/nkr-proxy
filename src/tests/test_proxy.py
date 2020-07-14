@@ -114,7 +114,7 @@ class TestAPIBasics(BaseTestClass):
         """
         Ensure only whitelisted HTTP verbs are let through.
         """
-        for verb in ['post', 'delete', 'put', 'patch']:
+        for verb in ['delete', 'put', 'patch']:
             response = getattr(client, verb)('/api/v1/index_search/select?q=test')
             assert response.status_code == 405, 'verb %s should not work' % verb
 
@@ -302,6 +302,16 @@ class TestSolrBasics(BaseTestClass):
         caplog.set_level(logging.CRITICAL) # error is expected
         response = client.get('/api/v1/index_search/select?q=*:*', headers={})
         assert response.status_code == 503, response.data
+
+    def test_invalid_solr_api_post_request(self, client):
+        """
+        Ensure only whitelisted Solr APIs are let through.
+        """
+        response = client.post('/api/v1/index_search/invalid?q=test')
+        assert response.status_code == 400
+
+        response = client.post('/api/v1/index_search/select?', data=dict(q='test'))
+        assert response.status_code == 200, 'tried select api. response: %s' % (response.data)
 
 
 class TestSolrResponseValidation(BaseTestClass):

@@ -59,7 +59,7 @@ def index_search_root(search_handler=None):
     raise BadRequest('you are probably looking for /api/v1/index_search/<search_handler>')
 
 
-@bp.route('/api/v1/index_search/<path:search_handler>', methods=['GET'])
+@bp.route('/api/v1/index_search/<path:search_handler>', methods=['GET','POST'])
 def index_search(search_handler=None):
     """
     Entrypoint for searching index withing the limits for entitlements
@@ -78,8 +78,19 @@ def index_search(search_handler=None):
         raise BadRequest('Invalid search handler. Valid search handlers are: %s' % settings.INDEX_ALLOWED_APIS)
 
     user_id = request.headers.get('x-user-id', None)
-    query_string = request.query_string.decode('utf-8')
 
+    query_string = ""
+    method = ""
+
+    if request.method == 'GET':
+        query_string = request.query_string.decode('utf-8')
+        method = request.method.lower()
+    
+    if request.method == 'POST':
+        raw_data = request.get_data()
+        query_string = raw_data.decode('utf-8')
+        method = request.method.lower()
+        
     if not query_string:
         raise BadRequest('search query is required')
 
@@ -134,7 +145,7 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
-    index_results = search_index(user_restriction_level, entitlements, search_query)
+    index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
     response = make_response(jsonify(index_results), 200)
 
@@ -188,7 +199,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 
-def search_index(user_restriction_level, entitlements, search_query):
+def search_index(user_restriction_level, entitlements, search_query, method):
     """
     Execute search to index.
     """
@@ -198,15 +209,28 @@ def search_index(user_restriction_level, entitlements, search_query):
 
     for n_retry, index_host in enumerate(settings.INDEX_HOSTS):
 
-        full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
-
-        logger.debug(full_index_url)
-
         try:
-            response = http_request(
-                full_index_url,
-                auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
-            )
+            if method == 'get':
+                full_index_url = '%s/%s/%s' % (index_host, settings.INDEX_NAME, search_query)
+                logger.debug('Url: %s' % full_index_url)
+                response = http_request(
+                    full_index_url,
+                    method=method,
+                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
+                )
+            if method == 'post':
+                full_index_url = '%s/%s/select' % (index_host, settings.INDEX_NAME)
+                logger.debug('Url: %s' % full_index_url)
+                post_search_query = search_query.lstrip('select?')
+                logger.debug('Payload: %s' % post_search_query)
+                headers = {'Accept-Encoding': 'gzip, deflate', 'Content-Type': 'application/x-www-form-urlencoded'}
+                response = http_request(
+                    full_index_url,
+                    method=method,
+                    data=post_search_query,
+                    headers=headers,
+                    auth=(settings.INDEX_USERNAME, settings.INDEX_PASSWORD)
+                )     
         except (Unauthorized, Forbidden) as e:
             logger.error(e.message)
             raise ServiceNotAvailable()
