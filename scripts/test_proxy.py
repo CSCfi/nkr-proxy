@@ -1,22 +1,22 @@
 import requests
 import pprint
 
-#env = 'local'
-env = 'test'
+env = 'local'
+#env = 'test'
 
-headers = {
-    'x-user-id': '<test-env-proxy-user-id>',
-    # 'x-user-id': 'test:b101',
-    # 'x-user-id': 'nope',
-
-}
 if env == 'local':
     auth = ('nkr-proxy', 'nkr-proxy')
     proxy_host = 'nkr-proxy.csc.local'
+    headers = {}   # no REMS in local env for now
 
 elif env == 'test':
     auth = ('<test-env-proxy-user>', '<test-env-proxy-passwd>')
     proxy_host = '<test-env-proxy-host>'
+    headers = {
+        'x-user-id': '<test-env-proxy-user-id>',
+        # 'x-user-id': 'test:b101',
+        # 'x-user-id': 'nope',
+    }
 
 
 response = requests.get(
