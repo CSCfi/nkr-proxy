@@ -28,6 +28,8 @@ VERIFY_TLS = settings.VERIFY_TLS
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 EPOCH = datetime(1970, 1, 1)
 
+max_amount_of_requests_24_h = 30
+
 
 bp = Blueprint('api', __name__)
 
@@ -172,6 +174,13 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
+    store_requests(user_id, search_query)
+    
+    amout_of_requests_24_h = count_requests(user_id)
+
+    if amout_of_requests_24_h >= max_amount_of_requests_24_h:
+        logger.debug('max amount of requests exceeded %s' % amout_of_requests_24_h)
+
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
     response = make_response(jsonify(index_results), 200)
@@ -225,6 +234,25 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     logger.debug('Adding user_restriction_level: %r' % user_restriction_level)
     return search_query, user_restriction_level
 
+def store_requests(user_id, search_query):
+    cache.rpush('requests_last_24_h%s' % user_id, str(round(time())))
+    logger.debug('Add timestamp to cache')
+
+def count_requests(user_id):
+    current_time = round(time())
+    time_frame_start = current_time-60*60*24
+    requests_of_user = []
+    request_count = 0
+
+    requests_of_user = cache.lrange('requests_last_24_h%s', % user_id, 0, -1).decode('utf-8')
+
+    for req_timestamp in requests_of_user:
+        if float(req_timestamp) <= current_time and float(req_timestamp) >= time_frame_start:
+            request_count += 1
+
+    logger.debug('From %s to %s' % (time_frame_start, current_time))
+    logger.debug('Requests %s' % request_count)
+    return request_count
 
 def search_index(user_restriction_level, entitlements, search_query, method):
     """
