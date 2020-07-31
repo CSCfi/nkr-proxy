@@ -244,10 +244,11 @@ def count_requests(user_id):
     requests_of_user = []
     request_count = 0
 
-    requests_of_user = cache.lrange('requests_last_24_h%s' % user_id, 0, -1).decode('utf-8')
+    requests_of_user = cache.lrange('requests_last_24_h%s' % user_id, 0, -1)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time and float(req_timestamp) >= time_frame_start:
+            logger.debug('Request timestamp %s' % req_timestamp)
             request_count += 1
 
     logger.debug('From %s to %s' % (time_frame_start, current_time))
