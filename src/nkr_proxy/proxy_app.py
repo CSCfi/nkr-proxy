@@ -28,7 +28,8 @@ VERIFY_TLS = settings.VERIFY_TLS
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 EPOCH = datetime(1970, 1, 1)
 
-max_amount_of_requests_24_h = 30
+max_amount_of_requests_24_h = 10
+max_amount_of_requests_week = 70
 
 
 bp = Blueprint('api', __name__)
@@ -174,12 +175,16 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
-    store_requests(user_id, search_query)
-    
-    amout_of_requests_24_h = count_requests(user_id)
+    if user_restriction_level != '00':
 
-    if amout_of_requests_24_h >= max_amount_of_requests_24_h:
-        logger.debug('max amount of requests exceeded %s' % amout_of_requests_24_h)
+        store_requests(user_id, search_query)
+    
+        amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
+
+        if amount_of_requests_24_h >= max_amount_of_requests_24_h:
+            logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
+        if amount_of_requests_week >= max_amount_of_requests_week:
+            logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
@@ -235,25 +240,38 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query):
-    cache.rpush('requests_last_24_h%s' % user_id, str(round(time())))
+    cache.rpush('all_requests_%s' % user_id, str(round(time())))
     logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
     current_time = round(time())
-    time_frame_start = current_time-60*60*24
+    daily_time_frame_start = current_time-60*60*24
+    weekly_time_frame_start = current_time-60*60*24*7
     requests_of_user = []
-    request_count = 0
+    daily_request_count = 0
+    weekly_request_count = 0
 
-    requests_of_user = cache.lrange('requests_last_24_h%s' % user_id, 0, -1)
+    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
 
     for req_timestamp in requests_of_user:
-        if float(req_timestamp) <= current_time and float(req_timestamp) >= time_frame_start:
+        if float(req_timestamp) <= current_time:
+            if float(req_timestamp) >= daily_time_frame_start:
+                logger.debug('Request timestamp %s' % req_timestamp)
+                daily_request_count += 1
+            if float(req_timestamp) >= weekly_time_frame_start:
+                weekly_request_count += 1
+            if float(req_timestamp) < weekly_time_frame_start:
+                cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
+        """
+        if float(req_timestamp) <= current_time and float(req_timestamp) >= daily_time_frame_start:
             logger.debug('Request timestamp %s' % req_timestamp)
-            request_count += 1
+            daily_request_count += 1
+        """
 
-    logger.debug('From %s to %s' % (time_frame_start, current_time))
-    logger.debug('Requests %s' % request_count)
-    return request_count
+    logger.debug('From %s to %s' % (daily_time_frame_start, current_time))
+    logger.debug('Requests %s' % daily_request_count)
+    logger.debug('Requests of week %s' % weekly_request_count)
+    return daily_request_count, weekly_request_count
 
 def search_index(user_restriction_level, entitlements, search_query, method):
     """
