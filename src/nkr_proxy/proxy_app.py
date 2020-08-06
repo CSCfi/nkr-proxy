@@ -187,9 +187,9 @@ def index_search(search_handler=None):
             logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
-    for doc in index_results['response']['docs']
-        if doc[LEVEL_RESTRICTION_FIELD] == '10'
-        logger.debug('Restricted document')
+    for doc in index_results['response']['docs']:
+        if doc[LEVEL_RESTRICTION_FIELD] == '10':
+            logger.debug('Restricted document')
 
     response = make_response(jsonify(index_results), 200)
 
