@@ -189,7 +189,8 @@ def index_search(search_handler=None):
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
     response = make_response(jsonify(index_results), 200)
-    logger.debug('Results %s' % index_results)
+    restr_level = index_results.response.docs.display_restriction_id_str
+    logger.debug('Restriction level: %s' % restr_level)
 
     for h, v in response_headers.items():
         response.headers[h] = v
