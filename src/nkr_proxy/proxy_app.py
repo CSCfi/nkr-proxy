@@ -174,7 +174,7 @@ def index_search(search_handler=None):
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
-
+    """
     if user_restriction_level != '00':
 
         store_requests(user_id, search_query)
@@ -185,10 +185,18 @@ def index_search(search_handler=None):
             logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
         if amount_of_requests_week >= max_amount_of_requests_week:
             logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
+    """
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
+    
     for doc in index_results['response']['docs']:
-        if doc[LEVEL_RESTRICTION_FIELD] == '10':
+        if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+            store_requests(user_id, search_query)
+            amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
+            if amount_of_requests_24_h >= max_amount_of_requests_24_h:
+                logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
+            if amount_of_requests_week >= max_amount_of_requests_week:
+                logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
             logger.debug('Restricted document')
 
     response = make_response(jsonify(index_results), 200)
