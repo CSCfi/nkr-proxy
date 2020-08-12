@@ -251,8 +251,14 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query):
-    cache.rpush('all_requests_%s' % user_id, str(round(time())))
-    logger.debug('Add timestamp to cache')
+    requests_of_user = []
+    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
+    req_timestamp = str(round(time()))
+
+    for rt in requests_of_user:
+        if rt != req_timestamp:
+            cache.rpush('all_requests_%s' % user_id, req_timestamp)
+            logger.debug('Add timestamp to cache: %s' % req_timestamp)
 
 def count_requests(user_id):
     current_time = round(time())
