@@ -255,10 +255,9 @@ def store_requests(user_id, search_query):
     requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
     req_timestamp = str(round(time()))
 
-    for rt in requests_of_user:
-        if rt != req_timestamp:
-            cache.rpush('all_requests_%s' % user_id, req_timestamp)
-            logger.debug('Add timestamp to cache: %s' % req_timestamp)
+    if req_timestamp not in requests_of_user:
+        cache.rpush('all_requests_%s' % user_id, req_timestamp)
+        logger.debug('Add timestamp to cache: %s' % req_timestamp)
 
 def count_requests(user_id):
     current_time = round(time())
