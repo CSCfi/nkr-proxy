@@ -251,23 +251,22 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query):
-    requests_of_user = []
-    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
     req_timestamp = str(round(time()))
-
-    if req_timestamp not in requests_of_user:
-        cache.rpush('all_requests_%s' % user_id, req_timestamp)
-        logger.debug('Add timestamp to cache: %s' % req_timestamp)
+    cache.sadd('all_requests_%s' % user_id, req_timestamp)
+    logger.debug('Add timestamp to cache: %s' % req_timestamp)
 
 def count_requests(user_id):
     current_time = round(time())
-    daily_time_frame_start = current_time-60*60*24
-    weekly_time_frame_start = current_time-60*60*24*7
+    daily_time_frame_start = current_time-60*60*2
+    weekly_time_frame_start = current_time-60*60*24
+    #daily_time_frame_start = current_time-60*60*24
+    #weekly_time_frame_start = current_time-60*60*24*7
     requests_of_user = []
     daily_request_count = 0
     weekly_request_count = 0
 
-    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
+    requests_of_user = cache.smembers('all_requests_%s' % user_id)
+    #requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time:
@@ -277,12 +276,8 @@ def count_requests(user_id):
             if float(req_timestamp) >= weekly_time_frame_start:
                 weekly_request_count += 1
             if float(req_timestamp) < weekly_time_frame_start:
-                cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
-        """
-        if float(req_timestamp) <= current_time and float(req_timestamp) >= daily_time_frame_start:
-            logger.debug('Request timestamp %s' % req_timestamp)
-            daily_request_count += 1
-        """
+                cache.srem('all_requests_%s' % user_id, req_timestamp)
+                #cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
 
     logger.debug('From %s to %s' % (daily_time_frame_start, current_time))
     logger.debug('Requests %s' % daily_request_count)
