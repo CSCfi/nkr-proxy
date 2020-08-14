@@ -251,7 +251,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query):
-    req_timestamp = str(round(time()))
+    req_timestamp = {str(round(time()))}
     cache.sadd('all_requests_%s' % user_id, req_timestamp)
     logger.debug('Add timestamp to cache: %s' % req_timestamp)
 
