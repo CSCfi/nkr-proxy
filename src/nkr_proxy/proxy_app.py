@@ -177,16 +177,15 @@ def index_search(search_handler=None):
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
     
-    if len(index_results['response']['docs']) == 1:
-        for doc in index_results['response']['docs']:
-            if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
-                store_requests(user_id, search_query)
-                amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
-                if amount_of_requests_24_h >= max_amount_of_requests_24_h:
-                    logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
-                if amount_of_requests_week >= max_amount_of_requests_week:
-                    logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
-                logger.debug('Restricted document')
+    for doc in index_results['response']['docs']:
+        if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+            store_requests(user_id, search_query)
+            amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
+            if amount_of_requests_24_h >= max_amount_of_requests_24_h:
+                logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
+            if amount_of_requests_week >= max_amount_of_requests_week:
+                logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
+            logger.debug('Restricted document')
 
     response = make_response(jsonify(index_results), 200)
 
