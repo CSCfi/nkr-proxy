@@ -174,30 +174,19 @@ def index_search(search_handler=None):
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
-    """
-    if user_restriction_level != '00':
-
-        store_requests(user_id, search_query)
     
-        amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
-
-        if amount_of_requests_24_h >= max_amount_of_requests_24_h:
-            logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
-        if amount_of_requests_week >= max_amount_of_requests_week:
-            logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
-    """
-
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
     
-    for doc in index_results['response']['docs']:
-        if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
-            store_requests(user_id, search_query)
-            amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
-            if amount_of_requests_24_h >= max_amount_of_requests_24_h:
-                logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
-            if amount_of_requests_week >= max_amount_of_requests_week:
-                logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
-            logger.debug('Restricted document')
+    if len(index_results['response']['docs']) == 1:
+        for doc in index_results['response']['docs']:
+            if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+                store_requests(user_id, search_query)
+                amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
+                if amount_of_requests_24_h >= max_amount_of_requests_24_h:
+                    logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
+                if amount_of_requests_week >= max_amount_of_requests_week:
+                    logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
+                logger.debug('Restricted document')
 
     response = make_response(jsonify(index_results), 200)
 
@@ -251,9 +240,8 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query):
-    #req_timestamp = str(round(time()))
-    #timestamps = {req_timestamp}
-    cache.sadd('all_requests_%s' % user_id, str(round(time())))
+    #cache.sadd('all_requests_test', str(round(time())))
+    cache.rpush('all_requests_%s' % user_id, str(round(time())))
     logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
@@ -266,8 +254,8 @@ def count_requests(user_id):
     daily_request_count = 0
     weekly_request_count = 0
 
-    requests_of_user = cache.smembers('all_requests_%s' % user_id)
-    #requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
+    #requests_test_list = cache.smembers('all_requests_test')
+    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time:
@@ -277,8 +265,8 @@ def count_requests(user_id):
             if float(req_timestamp) >= weekly_time_frame_start:
                 weekly_request_count += 1
             if float(req_timestamp) < weekly_time_frame_start:
-                cache.srem('all_requests_%s' % user_id, req_timestamp)
-                #cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
+                #cache.srem('all_requests_test', req_timestamp)
+                cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
 
     logger.debug('From %s to %s' % (daily_time_frame_start, current_time))
     logger.debug('Requests %s' % daily_request_count)
