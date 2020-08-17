@@ -239,7 +239,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query):
-    #cache.sadd('all_requests_test', str(round(time())))
+    cache.sadd('all_requests_test', str(round(time())))
     cache.rpush('all_requests_%s' % user_id, str(round(time())))
     logger.debug('Add timestamp to cache')
 
