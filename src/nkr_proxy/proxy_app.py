@@ -245,17 +245,20 @@ def generate_query_restrictions(user_id, original_query, entitlements):
 def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
-    ts = cache.rpop('all_requests_%s' % user_id)
-    timestamp = ts.decode('utf-8')
     timestamp_to_add = str(round(time()))
-    if timestamp != timestamp_to_add:
-        cache.rpush('all_requests_%s' % user_id, timestamp)
+    latest_time_stamp = cache.rpop('all_requests_%s' % user_id)
+    if latest_time_stamp is None:
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-        logger.debug('Timestamp %s' % timestamp)
-        logger.debug('New timestamp %s' % timestamp_to_add)
     else:
-        cache.rpush('all_requests_%s' % user_id, timestamp)
-        logger.debug('Timestamp %s' % timestamp)
+        timestamp = latest_time_stamp.decode('utf-8')
+        if timestamp != timestamp_to_add:
+            cache.rpush('all_requests_%s' % user_id, timestamp)
+            cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+            logger.debug('Timestamp %s' % timestamp)
+            logger.debug('New timestamp %s' % timestamp_to_add)
+        else:
+            cache.rpush('all_requests_%s' % user_id, timestamp)
+            logger.debug('Timestamp %s' % timestamp)
     logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
