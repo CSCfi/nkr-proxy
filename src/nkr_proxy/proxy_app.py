@@ -176,6 +176,10 @@ def index_search(search_handler=None):
     )
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
+
+    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
+    for req in requests_of_user:
+        cache.lrem('all_requests_%s' % user_id, 1, req)
     
     for doc in index_results['response']['docs']:
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
