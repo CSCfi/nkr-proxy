@@ -241,9 +241,9 @@ def generate_query_restrictions(user_id, original_query, entitlements):
 def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
-    timestamp = str(cache.rpop('all_requests_%s' % user_id))
+    timestamp = cache.rpop('all_requests_%s' % user_id)
     timestamp_to_add = str(round(time()))
-    if timestamp != timestamp_to_add:
+    if str(timestamp) != timestamp_to_add:
         cache.rpush('all_requests_%s' % user_id, timestamp)
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
     else:
