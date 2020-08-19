@@ -240,9 +240,14 @@ def generate_query_restrictions(user_id, original_query, entitlements):
 
 def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
-    #cache.rpush('all_requests_%s' % user_id, str(round(time())))
-    timestamp = str(round(time()))
-    cache.sadd('all_requests_%s' % user_id, timestamp)
+    # This could possibly be replaced by using SADD command
+    timestamp = cache.rpop('all_requests_%s' % user_id)
+    timestamp_to_add = str(round(time()))
+    if timestamp != timestamp_to_add:
+        cache.rpush('all_requests_%s' % user_id, timestamp)
+        cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+    else:
+        cache.rpush('all_requests_%s' % user_id, timestamp)
     logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
@@ -255,8 +260,8 @@ def count_requests(user_id):
     daily_request_count = 0
     weekly_request_count = 0
 
-    #requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
-    requests_of_user = cache.smembers('all_requests_%s' % user_id)
+    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
+    #requests_of_user = cache.smembers('all_requests_%s' % user_id)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time:
@@ -266,8 +271,8 @@ def count_requests(user_id):
             if float(req_timestamp) >= weekly_time_frame_start:
                 weekly_request_count += 1
             if float(req_timestamp) < weekly_time_frame_start:
-                #cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
-                cache.srem('all_requests_%s' % user_id, req_timestamp)
+                cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
+                #cache.srem('all_requests_%s' % user_id, req_timestamp)
 
     logger.debug('From %s to %s' % (daily_time_frame_start, current_time))
     logger.debug('Requests %s' % daily_request_count)
