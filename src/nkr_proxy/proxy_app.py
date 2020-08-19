@@ -246,8 +246,10 @@ def store_requests(user_id, search_query):
     if str(timestamp) != timestamp_to_add:
         cache.rpush('all_requests_%s' % user_id, timestamp)
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+        logger.debug('Timestamps %s %s' % timestamp, timestamp_to_add)
     else:
         cache.rpush('all_requests_%s' % user_id, timestamp)
+        logger.debug('Timestamp %s' % timestamp)
     logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
