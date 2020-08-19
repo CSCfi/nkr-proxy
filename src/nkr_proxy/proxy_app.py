@@ -241,9 +241,10 @@ def generate_query_restrictions(user_id, original_query, entitlements):
 def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
-    timestamp = cache.rpop('all_requests_%s' % user_id)
+    ts = cache.rpop('all_requests_%s' % user_id)
+    timestamp = ts.decode('utf-8')
     timestamp_to_add = str(round(time()))
-    if str(timestamp) != timestamp_to_add:
+    if timestamp != timestamp_to_add:
         cache.rpush('all_requests_%s' % user_id, timestamp)
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
         logger.debug('Timestamp %s' % timestamp)
@@ -255,8 +256,8 @@ def store_requests(user_id, search_query):
 
 def count_requests(user_id):
     current_time = round(time())
-    daily_time_frame_start = current_time-60*60*2
-    weekly_time_frame_start = current_time-60*60*24
+    daily_time_frame_start = current_time-60*10
+    weekly_time_frame_start = current_time-60*20
     #daily_time_frame_start = current_time-60*60*24
     #weekly_time_frame_start = current_time-60*60*24*7
     requests_of_user = []
