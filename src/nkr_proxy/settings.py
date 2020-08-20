@@ -82,6 +82,8 @@ class Settings():
         'REMS_SESSION_CLOSE_USER',
         'REMS_LOGOUT_MESSAGE',
         'CRON_SESSION_EXPIRE_LOG',
+        'MAX_AMOUNT_OF_REQUESTS_24_H',
+        'MAX_AMOUNT_OF_REQUESTS_30_DAYS',
     )
 
     INDEX_HEADERS = {}

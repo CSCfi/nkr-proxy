@@ -27,10 +27,8 @@ ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIE
 VERIFY_TLS = settings.VERIFY_TLS
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 EPOCH = datetime(1970, 1, 1)
-
-max_amount_of_requests_24_h = 10
-max_amount_of_requests_week = 70
-
+MAX_REQUESTS_24_H = settings.MAX_AMOUNT_OF_REQUESTS_24_H
+MAX_REQUESTS_30_DAYS = settings.MAX_AMOUNT_OF_REQUESTS_30_DAYS
 
 bp = Blueprint('api', __name__)
 
@@ -180,11 +178,11 @@ def index_search(search_handler=None):
     for doc in index_results['response']['docs']:
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query)
-            amount_of_requests_24_h, amount_of_requests_week = count_requests(user_id)
-            if amount_of_requests_24_h >= max_amount_of_requests_24_h:
+            amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
+            if amount_of_requests_24_h >= MAX_REQUESTS_24_H:
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
-            if amount_of_requests_week >= max_amount_of_requests_week:
-                logger.debug('max weekly requests exceeded %s' % amount_of_requests_week)
+            if amount_of_requests_month >= MAX_REQUESTS_30_DAYS:
+                logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
             logger.debug('Restricted document')
 
     response = make_response(jsonify(index_results), 200)
@@ -242,11 +240,11 @@ def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
     timestamp_to_add = str(round(time()))
-    latest_time_stamp = cache.rpop('all_requests_%s' % user_id)
-    if latest_time_stamp is None:
+    latest_timestamp = cache.rpop('all_requests_%s' % user_id)
+    if latest_timestamp is None:
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
     else:
-        timestamp = latest_time_stamp.decode('utf-8')
+        timestamp = latest_timestamp.decode('utf-8')
         if timestamp != timestamp_to_add:
             cache.rpush('all_requests_%s' % user_id, timestamp)
             cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
@@ -259,32 +257,30 @@ def store_requests(user_id, search_query):
 
 def count_requests(user_id):
     current_time = round(time())
-    daily_time_frame_start = current_time-60*10
-    weekly_time_frame_start = current_time-60*20
-    #daily_time_frame_start = current_time-60*60*24
-    #weekly_time_frame_start = current_time-60*60*24*7
+    time_frame_24_hours_start = current_time-60*10
+    #time_frame_24_hours_start = current_time-60*60*24
+    time_frame_30_days_start = current_time-60*20
+    #time_frame_30_days_start = current_time-60*60*24*30
     requests_of_user = []
-    daily_request_count = 0
-    weekly_request_count = 0
-
+    request_count_24_hours = 0
+    request_count_30_days = 0
     requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
     #requests_of_user = cache.smembers('all_requests_%s' % user_id)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time:
-            if float(req_timestamp) >= daily_time_frame_start:
+            if float(req_timestamp) >= time_frame_24_hours_start:
                 logger.debug('Request timestamp %s' % req_timestamp)
-                daily_request_count += 1
-            if float(req_timestamp) >= weekly_time_frame_start:
-                weekly_request_count += 1
-            if float(req_timestamp) < weekly_time_frame_start:
+                request_count_24_hours += 1
+            if float(req_timestamp) >= time_frame_30_days_start:
+                request_count_30_days += 1
+            if float(req_timestamp) < time_frame_30_days_start:
                 cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
                 #cache.srem('all_requests_%s' % user_id, req_timestamp)
-
-    logger.debug('From %s to %s' % (daily_time_frame_start, current_time))
-    logger.debug('Requests %s' % daily_request_count)
-    logger.debug('Requests of week %s' % weekly_request_count)
-    return daily_request_count, weekly_request_count
+    logger.debug('From %s to %s' % (time_frame_24_hours_start, current_time))
+    logger.debug('Requests %s' % request_count_24_hours)
+    logger.debug('Requests of week %s' % request_count_30_days)
+    return request_count_24_hours, request_count_30_days
 
 def search_index(user_restriction_level, entitlements, search_query, method):
     """
