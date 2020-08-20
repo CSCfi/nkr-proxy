@@ -179,9 +179,9 @@ def index_search(search_handler=None):
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query)
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
-            if amount_of_requests_24_h >= MAX_REQUESTS_24_H:
+            if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
-            if amount_of_requests_month >= MAX_REQUESTS_30_DAYS:
+            if amount_of_requests_month >= int(MAX_REQUESTS_30_DAYS):
                 logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
             logger.debug('Restricted document')
 
