@@ -259,7 +259,7 @@ def count_requests(user_id):
     current_time = round(time())
     time_frame_24_hours_start = current_time-60*10
     #time_frame_24_hours_start = current_time-60*60*24
-    time_frame_30_days_start = current_time-60*20
+    time_frame_30_days_start = current_time-60*60*2
     #time_frame_30_days_start = current_time-60*60*24*30
     requests_of_user = []
     request_count_24_hours = 0
@@ -272,7 +272,8 @@ def count_requests(user_id):
             if float(req_timestamp) >= time_frame_24_hours_start:
                 logger.debug('Request timestamp %s' % req_timestamp)
                 request_count_24_hours += 1
-            if float(req_timestamp) >= time_frame_30_days_start:
+                request_count_30_days += 1
+            if float(req_timestamp) >= time_frame_30_days_start and float(req_timestamp) < time_frame_24_hours_start:
                 request_count_30_days += 1
             if float(req_timestamp) < time_frame_30_days_start:
                 cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
