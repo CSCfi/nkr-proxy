@@ -240,10 +240,10 @@ def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
     timestamp_to_add = str(round(time()))
-    latest_timestamp = cache.rpop('all_requests_%s' % user_id)
-    if latest_timestamp is None:
+    if cache.llen('all_requests_%s' % user_id) == 0:
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-    else:
+    if cache.llen('all_requests_%s' % user_id) > 0:
+        latest_timestamp = cache.rpop('all_requests_%s' % user_id)
         timestamp = latest_timestamp.decode('utf-8')
         if timestamp != timestamp_to_add:
             cache.rpush('all_requests_%s' % user_id, timestamp)
