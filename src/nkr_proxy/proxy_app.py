@@ -31,6 +31,8 @@ MAX_REQUESTS_24_H = settings.MAX_AMOUNT_OF_REQUESTS_24_H
 MAX_REQUESTS_30_DAYS = settings.MAX_AMOUNT_OF_REQUESTS_30_DAYS
 REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
+REQ_TIME_DIFF_LOWER = settings.REQ_TIME_DIFFERENCE_LOWER_BOUND
+REQ_TIME_DIFF_UPPER = settings.REQ_TIME_DIFFERENCE_UPPER_BOUND
 
 bp = Blueprint('api', __name__)
 
@@ -248,7 +250,7 @@ def store_requests(user_id, search_query):
         if cache.llen('all_requests_%s' % user_id) > 0:
             latest_timestamp = cache.rpop('all_requests_%s' % user_id)
             timestamp = latest_timestamp.decode('utf-8')
-            if timestamp != timestamp_to_add:
+            if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= REQ_TIME_DIFF_LOWER and float(timestamp_to_add) - float(timestamp) <= REQ_TIME_DIFF_UPPER:
                 cache.rpush('all_requests_%s' % user_id, timestamp)
                 cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
                 logger.debug('Timestamp %s' % timestamp)
