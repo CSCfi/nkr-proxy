@@ -29,6 +29,8 @@ DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 EPOCH = datetime(1970, 1, 1)
 MAX_REQUESTS_24_H = settings.MAX_AMOUNT_OF_REQUESTS_24_H
 MAX_REQUESTS_30_DAYS = settings.MAX_AMOUNT_OF_REQUESTS_30_DAYS
+REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
+REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
 
 bp = Blueprint('api', __name__)
 
@@ -240,20 +242,21 @@ def store_requests(user_id, search_query):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
     timestamp_to_add = str(round(time()))
-    if cache.llen('all_requests_%s' % user_id) == 0:
-        cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-    if cache.llen('all_requests_%s' % user_id) > 0:
-        latest_timestamp = cache.rpop('all_requests_%s' % user_id)
-        timestamp = latest_timestamp.decode('utf-8')
-        if timestamp != timestamp_to_add:
-            cache.rpush('all_requests_%s' % user_id, timestamp)
+    if REQ_INCLUSION_CRITERIA in search_query and REQ_EXCLUSION_CRITERIA not in search_query:
+        if cache.llen('all_requests_%s' % user_id) == 0:
             cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-            logger.debug('Timestamp %s' % timestamp)
-            logger.debug('New timestamp %s' % timestamp_to_add)
-        else:
-            cache.rpush('all_requests_%s' % user_id, timestamp)
-            logger.debug('Timestamp %s' % timestamp)
-    logger.debug('Add timestamp to cache')
+        if cache.llen('all_requests_%s' % user_id) > 0:
+            latest_timestamp = cache.rpop('all_requests_%s' % user_id)
+            timestamp = latest_timestamp.decode('utf-8')
+            if timestamp != timestamp_to_add:
+                cache.rpush('all_requests_%s' % user_id, timestamp)
+                cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+                logger.debug('Timestamp %s' % timestamp)
+                logger.debug('New timestamp %s' % timestamp_to_add)
+            else:
+                cache.rpush('all_requests_%s' % user_id, timestamp)
+                logger.debug('Timestamp %s' % timestamp)
+        logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
     current_time = round(time())
