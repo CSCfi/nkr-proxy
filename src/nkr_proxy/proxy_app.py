@@ -250,7 +250,7 @@ def store_requests(user_id, search_query):
         if cache.llen('all_requests_%s' % user_id) > 0:
             latest_timestamp = cache.rpop('all_requests_%s' % user_id)
             timestamp = latest_timestamp.decode('utf-8')
-            if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= REQ_TIME_DIFF_LOWER and float(timestamp_to_add) - float(timestamp) <= REQ_TIME_DIFF_UPPER:
+            if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER) and float(timestamp_to_add) - float(timestamp) <= float(REQ_TIME_DIFF_UPPER):
                 cache.rpush('all_requests_%s' % user_id, timestamp)
                 cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
                 logger.debug('Timestamp %s' % timestamp)
