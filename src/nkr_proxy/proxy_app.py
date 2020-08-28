@@ -397,6 +397,7 @@ def send_email_notification():
     msg = Message("Hakuraja ylittynyt",
               recipients=[MAIL_RECIPIENT])
     msg.body = "Vuorokauden hakuraja on ylittynyt"
+    mail.send(msg)
 
 def before_request():
     g.request_start_time = time()
