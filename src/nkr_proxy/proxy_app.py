@@ -8,6 +8,7 @@ from time import time
 from datetime import datetime
 
 from flask import Flask, g, Blueprint, jsonify, make_response, request
+from flask_mail import Mail, Message
 import requests
 import werkzeug
 
@@ -32,7 +33,13 @@ MAX_REQUESTS_30_DAYS = settings.MAX_AMOUNT_OF_REQUESTS_30_DAYS
 REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_TIME_DIFF_LOWER = settings.REQ_TIME_DIFFERENCE_LOWER_BOUND
-REQ_TIME_DIFF_UPPER = settings.REQ_TIME_DIFFERENCE_UPPER_BOUND
+MAIL_SERVER = settings.MAIL_SERVER
+MAIL_PORT = settings.MAIL_PORT
+MAIL_USE_TLS = settings.MAIL_USE_TLS
+MAIL_USE_SSL = settings.MAIL_USE_SSL
+MAIL_DEFAULT_SENDER = settings.MAIL_DEFAULT_SENDER
+MAIL_MAX_EMAILS = settings.MAIL_MAX_EMAILS
+MAIL_RECIPIENT = settings.MAIL_RECIPIENT
 
 bp = Blueprint('api', __name__)
 
@@ -184,8 +191,11 @@ def index_search(search_handler=None):
             store_requests(user_id, search_query)
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
+                #response_headers['x-user-max-requests-day'] = 'exceeded'
+                send_email_notification()
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
             if amount_of_requests_month >= int(MAX_REQUESTS_30_DAYS):
+                #response_headers['x-user-max-requests-month'] = 'exceeded'
                 logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
             logger.debug('Restricted document')
 
@@ -250,7 +260,7 @@ def store_requests(user_id, search_query):
         if cache.llen('all_requests_%s' % user_id) > 0:
             latest_timestamp = cache.rpop('all_requests_%s' % user_id)
             timestamp = latest_timestamp.decode('utf-8')
-            if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER) and float(timestamp_to_add) - float(timestamp) <= float(REQ_TIME_DIFF_UPPER):
+            if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
                 cache.rpush('all_requests_%s' % user_id, timestamp)
                 cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
                 logger.debug('Timestamp %s' % timestamp)
@@ -383,6 +393,10 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
     return resp_json
 
+def send_email_notification():
+    msg = Message("Hakuraja ylittynyt",
+              recipients=[MAIL_RECIPIENT])
+    msg.body = "Vuorokauden hakuraja on ylittynyt"
 
 def before_request():
     g.request_start_time = time()
@@ -414,6 +428,7 @@ bp.before_request(before_request)
 
 app = Flask(__name__)
 app.register_blueprint(bp)
+mail = Mail(app)
 
 
 if __name__ == "__main__":

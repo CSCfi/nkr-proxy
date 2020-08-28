@@ -87,7 +87,13 @@ class Settings():
         'EXCLUDE_REQUESTS_WITH_FIELD_PARAM',
         'INCLUDE_REQUESTS_WITH_FIELD_PARAM',
         'REQ_TIME_DIFFERENCE_LOWER_BOUND',
-        'REQ_TIME_DIFFERENCE_UPPER_BOUND',
+        'MAIL_SERVER',
+        'MAIL_PORT',
+        'MAIL_USE_TLS',
+        'MAIL_USE_SSL',
+        'MAIL_DEFAULT_SENDER',
+        'MAIL_MAX_EMAILS',
+        'MAIL_RECIPIENT',
     )
 
     INDEX_HEADERS = {}
