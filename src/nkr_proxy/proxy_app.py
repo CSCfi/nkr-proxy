@@ -191,9 +191,11 @@ def index_search(search_handler=None):
             store_requests(user_id, search_query)
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
-                #response_headers['x-user-max-requests-day'] = 'exceeded'
+                response_headers['x-user-max-requests-day'] = 'exceeded'
                 send_email_notification()
+                response = make_response('Testi', 200)
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
+                return response
             if amount_of_requests_month >= int(MAX_REQUESTS_30_DAYS):
                 #response_headers['x-user-max-requests-month'] = 'exceeded'
                 logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
