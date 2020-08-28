@@ -394,8 +394,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
     return resp_json
 
 def send_email_notification():
-    msg = Message("Hakuraja ylittynyt",
-              recipients=[MAIL_RECIPIENT])
+    msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
     msg.body = "Vuorokauden hakuraja on ylittynyt"
     mail.send(msg)
 
