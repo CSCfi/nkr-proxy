@@ -427,8 +427,8 @@ bp.after_request(after_request)
 bp.before_request(before_request)
 
 app = Flask(__name__)
-app.register_blueprint(bp)
 mail = Mail(app)
+app.register_blueprint(bp)
 
 
 if __name__ == "__main__":
