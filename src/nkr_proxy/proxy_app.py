@@ -193,7 +193,7 @@ def index_search(search_handler=None):
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
                 send_email_notification()
-                index_results['response']['docs'] = []
+                index_results = []
                 response = make_response(jsonify(index_results), 200)
                 for h, v in response_headers.items():
                     response.headers[h] = v
