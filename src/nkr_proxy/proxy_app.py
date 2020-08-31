@@ -185,6 +185,8 @@ def index_search(search_handler=None):
     )
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
+
+    number_of_sent_emails = 0
     
     for doc in index_results['response']['docs']:
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
@@ -192,7 +194,9 @@ def index_search(search_handler=None):
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                send_email_notification()
+                if number_of_sent_emails != 1:
+                    send_email_notification()
+                    number_of_sent_emails += 1
                 index_results = []
                 response = make_response(jsonify(index_results), 200)
                 for h, v in response_headers.items():
