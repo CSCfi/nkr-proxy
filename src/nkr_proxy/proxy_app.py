@@ -192,7 +192,7 @@ def index_search(search_handler=None):
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                if cache.llen('email-to-user:%s' user_id) == 0:
+                if cache.llen('email-to-user:%s' % user_id) == 0:
                     send_email_notification(user_id)
                 index_results = []
                 response = make_response(jsonify(index_results), 200)
