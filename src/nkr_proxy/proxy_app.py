@@ -195,7 +195,7 @@ def index_search(search_handler=None):
                 check_sent_emails(user_id)
                 if cache.llen('email-to-user:%s' % user_id) == 0:
                     send_email_notification(user_id)
-                index_results = []
+                index_results['response']['docs'] = []
                 response = make_response(jsonify(index_results), 200)
                 for h, v in response_headers.items():
                     response.headers[h] = v
@@ -409,7 +409,7 @@ def check_sent_emails(user_id):
     for sending_time in email_sending_times:
         if float(sending_time) < start_from:
             cache.lrem('email-to-user:%s' % user_id, 1, sending_time)
-            
+
 
 def send_email_notification(user_id):
     msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
