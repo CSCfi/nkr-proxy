@@ -192,6 +192,7 @@ def index_search(search_handler=None):
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
+                check_sent_emails(user_id)
                 if cache.llen('email-to-user:%s' % user_id) == 0:
                     send_email_notification(user_id)
                 index_results = []
@@ -400,11 +401,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
     return resp_json
 
-def send_email_notification(user_id):
-    msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
-    msg.body = "Vuorokauden hakuraja on ylittynyt"
-    mail.send(msg)
-    cache.rpush('email-to-user:%s' % user_id, round(time()))
+def check_sent_emails(user_id):
     current_time = round(time())
     start_from = current_time-60*10
     email_sending_times = cache.lrange('email-to-user:%s' % user_id, 0, -1)
@@ -412,6 +409,13 @@ def send_email_notification(user_id):
     for sending_time in email_sending_times:
         if float(sending_time) < start_from:
             cache.lrem('email-to-user:%s' % user_id, 1, sending_time)
+            
+
+def send_email_notification(user_id):
+    msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
+    msg.body = "Vuorokauden hakuraja on ylittynyt"
+    mail.send(msg)
+    cache.rpush('email-to-user:%s' % user_id, round(time()))
 
 
 def before_request():
