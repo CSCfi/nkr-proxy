@@ -197,7 +197,7 @@ def index_search(search_handler=None):
             store_requests(user_id, search_query)
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
             if amount_of_requests_24_h < int(MAX_REQUESTS_24_H) and amount_of_requests_month < int(MAX_REQUESTS_30_DAYS):
-                filtered_results.append(doc)
+                filtered_results = [doc]
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
                 check_sent_emails(user_id)
@@ -215,7 +215,7 @@ def index_search(search_handler=None):
                 logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
             logger.debug('Restricted document')
         elif user_restriction_level != '00':
-            filtered_results.append(doc)
+            filtered_results = [doc]
 
     #response = make_response(jsonify(index_results), 200)
     response = make_response(jsonify(filtered_results), 200)
