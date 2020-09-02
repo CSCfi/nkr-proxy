@@ -185,29 +185,40 @@ def index_search(search_handler=None):
     )
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
+
+    response_headers['x-user-daily-request-limit-exceeded'] = ''
+
+    response_headers['x-user-monthly-request-limit-exceeded'] = ''
+
+    filtered_results = []
     
     for doc in index_results['response']['docs']:
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query)
             amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
+            if amount_of_requests_24_h < int(MAX_REQUESTS_24_H) and amount_of_requests_month < int(MAX_REQUESTS_30_DAYS):
+                filtered_results.append(doc)
             if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
                 check_sent_emails(user_id)
                 if cache.llen('email-to-user:%s' % user_id) == 0:
                     send_email_notification(user_id)
-                index_results['response']['docs'] = []
-                response = make_response(jsonify(index_results), 200)
-                for h, v in response_headers.items():
-                    response.headers[h] = v
+                #index_results['response']['docs'] = []
+                #response = make_response(jsonify(index_results), 200)
+                #for h, v in response_headers.items():
+                #    response.headers[h] = v
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
                 
-                return response
+                #return response
             if amount_of_requests_month >= int(MAX_REQUESTS_30_DAYS):
                 response_headers['x-user-monthly-request-limit-exceeded'] = '1'
                 logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
             logger.debug('Restricted document')
+        elif user_restriction_level != '00':
+            filtered_results.append(doc)
 
-    response = make_response(jsonify(index_results), 200)
+    #response = make_response(jsonify(index_results), 200)
+    response = make_response(jsonify(filtered_results), 200)
 
     for h, v in response_headers.items():
         response.headers[h] = v
