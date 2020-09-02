@@ -28,8 +28,8 @@ ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIE
 VERIFY_TLS = settings.VERIFY_TLS
 DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
 EPOCH = datetime(1970, 1, 1)
-MAX_REQUESTS_24_H = settings.MAX_AMOUNT_OF_REQUESTS_24_H
-MAX_REQUESTS_30_DAYS = settings.MAX_AMOUNT_OF_REQUESTS_30_DAYS
+MAX_REQUESTS_SHORT_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_SHORT_PERIOD
+MAX_REQUESTS_LONG_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_LONG_PERIOD
 REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_TIME_DIFF_LOWER = settings.REQ_TIME_DIFFERENCE_LOWER_BOUND
@@ -195,10 +195,10 @@ def index_search(search_handler=None):
     for doc in index_results['response']['docs']:
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query)
-            amount_of_requests_24_h, amount_of_requests_month = count_requests(user_id)
-            if amount_of_requests_24_h < int(MAX_REQUESTS_24_H) and amount_of_requests_month < int(MAX_REQUESTS_30_DAYS):
-                filtered_results = [doc]
-            if amount_of_requests_24_h >= int(MAX_REQUESTS_24_H):
+            amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+            if amount_of_requests_short_period < int(MAX_REQUESTS_SHORT_PERIOD) and amount_of_requests_long_period < int(MAX_REQUESTS_LONG_PERIOD):
+                filtered_results.append(doc)
+            if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
                 check_sent_emails(user_id)
                 if cache.llen('email-to-user:%s' % user_id) == 0:
@@ -207,18 +207,17 @@ def index_search(search_handler=None):
                 #response = make_response(jsonify(index_results), 200)
                 #for h, v in response_headers.items():
                 #    response.headers[h] = v
-                logger.debug('max amount of requests exceeded %s' % amount_of_requests_24_h)
-                
+                logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
                 #return response
-            if amount_of_requests_month >= int(MAX_REQUESTS_30_DAYS):
+            if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
                 response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-                logger.debug('monthly max of requests exceeded %s' % amount_of_requests_month)
+                logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
             logger.debug('Restricted document')
         elif user_restriction_level != '00':
-            filtered_results = [doc]
+            filtered_results.append(doc)
 
-    #response = make_response(jsonify(index_results), 200)
-    response = make_response(jsonify(filtered_results), 200)
+    index_results['response']['docs'] = filtered_results
+    response = make_response(jsonify(index_results), 200)
 
     for h, v in response_headers.items():
         response.headers[h] = v
@@ -291,31 +290,29 @@ def store_requests(user_id, search_query):
 
 def count_requests(user_id):
     current_time = round(time())
-    time_frame_24_hours_start = current_time-60*10
-    #time_frame_24_hours_start = current_time-60*60*24
-    time_frame_30_days_start = current_time-60*60*2
-    #time_frame_30_days_start = current_time-60*60*24*30
+    short_time_frame_start = current_time-60*10
+    long_time_frame_start = current_time-60*60*2
     requests_of_user = []
-    request_count_24_hours = 0
-    request_count_30_days = 0
+    request_count_short_period = 0
+    request_count_long_period = 0
     requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
     #requests_of_user = cache.smembers('all_requests_%s' % user_id)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time:
-            if float(req_timestamp) >= time_frame_24_hours_start:
+            if float(req_timestamp) >= short_time_frame_start:
                 logger.debug('Request timestamp %s' % req_timestamp)
-                request_count_24_hours += 1
-                request_count_30_days += 1
-            if float(req_timestamp) >= time_frame_30_days_start and float(req_timestamp) < time_frame_24_hours_start:
-                request_count_30_days += 1
-            if float(req_timestamp) < time_frame_30_days_start:
+                request_count_short_period += 1
+                request_count_long_period += 1
+            if float(req_timestamp) >= long_time_frame_start and float(req_timestamp) < short_time_frame_start:
+                request_count_long_period += 1
+            if float(req_timestamp) < long_time_frame_start:
                 cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
                 #cache.srem('all_requests_%s' % user_id, req_timestamp)
-    logger.debug('From %s to %s' % (time_frame_24_hours_start, current_time))
-    logger.debug('Requests %s' % request_count_24_hours)
-    logger.debug('Requests of week %s' % request_count_30_days)
-    return request_count_24_hours, request_count_30_days
+    logger.debug('From %s to %s' % (short_time_frame_start, current_time))
+    logger.debug('Requests %s' % request_count_short_period)
+    logger.debug('Requests of longer period %s' % request_count_long_period)
+    return request_count_short_period, request_count_long_period
 
 def search_index(user_restriction_level, entitlements, search_query, method):
     """
