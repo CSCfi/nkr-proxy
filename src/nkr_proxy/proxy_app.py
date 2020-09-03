@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
-import pprint
+from pprint import pprint, pformat
 from base64 import b64encode
 from random import shuffle
 from time import time
@@ -187,7 +187,7 @@ def index_search(search_handler=None):
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-    logger.debug(pprint.pprint(index_results))
+    logger.debug(pformat(index_results))
 
     response_headers['x-user-daily-request-limit-exceeded'] = ''
 
