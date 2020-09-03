@@ -187,7 +187,7 @@ def index_search(search_handler=None):
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-    pprint.pprint(index_results)
+    logger.debug(pprint.pprint(index_results))
 
     response_headers['x-user-daily-request-limit-exceeded'] = ''
 
@@ -210,6 +210,8 @@ def index_search(search_handler=None):
                 #response = make_response(jsonify(index_results), 200)
                 #for h, v in response_headers.items():
                 #    response.headers[h] = v
+                doc = []
+                filtered_results.append(doc)
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
                 #return response
             if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
