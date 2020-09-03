@@ -187,6 +187,8 @@ def index_search(search_handler=None):
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
+    pprint.pprint(index_results)
+
     response_headers['x-user-daily-request-limit-exceeded'] = ''
 
     response_headers['x-user-monthly-request-limit-exceeded'] = ''
@@ -218,7 +220,7 @@ def index_search(search_handler=None):
             filtered_results.append(doc)
 
     index_results['response']['docs'] = filtered_results
-    pprint.pprint(index_results)
+    
     response = make_response(jsonify(index_results), 200)
 
     for h, v in response_headers.items():
