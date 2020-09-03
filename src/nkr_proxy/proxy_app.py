@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+import pprint
 from base64 import b64encode
 from random import shuffle
 from time import time
@@ -217,6 +218,7 @@ def index_search(search_handler=None):
             filtered_results.append(doc)
 
     index_results['response']['docs'] = filtered_results
+    pprint.pprint(index_results)
     response = make_response(jsonify(index_results), 200)
 
     for h, v in response_headers.items():
