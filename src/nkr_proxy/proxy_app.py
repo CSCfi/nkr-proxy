@@ -187,8 +187,6 @@ def index_search(search_handler=None):
     
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-    logger.debug(pformat(index_results))
-
     response_headers['x-user-daily-request-limit-exceeded'] = ''
 
     response_headers['x-user-monthly-request-limit-exceeded'] = ''
@@ -196,6 +194,8 @@ def index_search(search_handler=None):
     filtered_results = []
     
     for doc in index_results['response']['docs']:
+        logger.debug('Document:')
+        logger.debug(pformat(doc))
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query)
             amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
