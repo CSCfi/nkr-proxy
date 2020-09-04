@@ -181,11 +181,18 @@ def index_search(search_handler=None):
             if blacklisted.get('blacklisted'):
                 response_headers['x-user-blacklisted'] = blacklisted.get('date', '-')
 
+    amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+
+    request_limit_exceeded = ''
+
+    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+        request_limit_exceeded = '1'
+    
     search_query, user_restriction_level = generate_query_restrictions(
-        user_id, '%s?%s' % (search_handler, query_string), entitlements
+        user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
     )
 
-    if user_restriction_level != '00':
+    if user_restriction_level != '00' or request_limit_exceeded == '1':
 
         amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
         
@@ -235,7 +242,7 @@ def hello():
     return "<h1 style='color:blue'>Hello There!</h1>"
 
 
-def generate_query_restrictions(user_id, original_query, entitlements):
+def generate_query_restrictions(user_id, original_query, entitlements, request_limit_exceeded):
     """
     Generate a query to augment the original query to index, to only target
     particular permitted documents according to entitlements. Additionally,
@@ -247,6 +254,9 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     user_restriction_level = '00'
 
     for ent in entitlements:
+        if ent == LEVEL_10_RESOURCE_ID and request_limit_exceeded == '1':
+            permission_query = 'fq=+filter(%s:00)' % LEVEL_RESTRICTION_FIELD
+            break
         if ent == LEVEL_10_RESOURCE_ID:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
