@@ -205,7 +205,7 @@ def index_search(search_handler=None):
             if cache.llen('email-to-user:%s' % user_id) == 0:
                 send_email_notification(user_id)
             user_restriction_level = '00'
-            entitlements = []
+            #entitlements = []
             index_results = search_index(user_restriction_level, entitlements, search_query, method)
             response = make_response(jsonify(index_results), 200)
 
