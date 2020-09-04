@@ -202,8 +202,8 @@ def index_search(search_handler=None):
         elif amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
             response_headers['x-user-daily-request-limit-exceeded'] = ''
             check_sent_emails(user_id)
-                if cache.llen('email-to-user:%s' % user_id) == 0:
-                    send_email_notification(user_id)
+            if cache.llen('email-to-user:%s' % user_id) == 0:
+                send_email_notification(user_id)
             user_restriction_level = '00'
             entitlements = []
             index_results = search_index(user_restriction_level, entitlements, search_query, method)
