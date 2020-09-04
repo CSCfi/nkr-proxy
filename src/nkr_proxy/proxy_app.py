@@ -184,51 +184,49 @@ def index_search(search_handler=None):
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
-    
-    index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-    response_headers['x-user-daily-request-limit-exceeded'] = ''
+    if user_restriction_level != '00':
 
-    response_headers['x-user-monthly-request-limit-exceeded'] = ''
+        amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+        
+        if amount_of_requests_short_period < int(MAX_REQUESTS_SHORT_PERIOD) and amount_of_requests_long_period < int(MAX_REQUESTS_LONG_PERIOD):
+            store_requests(user_id, search_query, user_restriction_level)
+            index_results = search_index(user_restriction_level, entitlements, search_query, method)
+            response = make_response(jsonify(index_results), 200)
 
-    filtered_results = []
-    
-    for doc in index_results['response']['docs']:
-        logger.debug('Document:')
-        logger.debug(pformat(doc))
-        if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
-            store_requests(user_id, search_query)
-            amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
-            if amount_of_requests_short_period < int(MAX_REQUESTS_SHORT_PERIOD) and amount_of_requests_long_period < int(MAX_REQUESTS_LONG_PERIOD):
-                filtered_results.append(doc)
-            if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
-                response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                check_sent_emails(user_id)
+            for h, v in response_headers.items():
+                response.headers[h] = v
+
+            return response
+
+        elif amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+            response_headers['x-user-daily-request-limit-exceeded'] = ''
+            check_sent_emails(user_id)
                 if cache.llen('email-to-user:%s' % user_id) == 0:
                     send_email_notification(user_id)
-                #index_results['response']['docs'] = []
-                #response = make_response(jsonify(index_results), 200)
-                #for h, v in response_headers.items():
-                #    response.headers[h] = v
-                doc = []
-                filtered_results.append(doc)
-                logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
-                #return response
-            if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-                response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-                logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
-            logger.debug('Restricted document')
-        elif user_restriction_level != '00':
-            filtered_results.append(doc)
+            user_restriction_level = '00'
+            entitlements = []
+            index_results = search_index(user_restriction_level, entitlements, search_query, method)
+            response = make_response(jsonify(index_results), 200)
 
-    index_results['response']['docs'] = filtered_results
-    
-    response = make_response(jsonify(index_results), 200)
+            for h, v in response_headers.items():
+                response.headers[h] = v
 
-    for h, v in response_headers.items():
-        response.headers[h] = v
+            return response
 
-    return response
+        elif amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+            response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+            logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
+
+    else:
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
+        response = make_response(jsonify(index_results), 200)
+
+        for h, v in response_headers.items():
+            response.headers[h] = v
+
+        return response
+
 
 
 @bp.route("/")
@@ -274,25 +272,26 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     logger.debug('Adding user_restriction_level: %r' % user_restriction_level)
     return search_query, user_restriction_level
 
-def store_requests(user_id, search_query):
+def store_requests(user_id, search_query, user_restriction_level):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
     timestamp_to_add = str(round(time()))
-    if REQ_INCLUSION_CRITERIA in search_query and REQ_EXCLUSION_CRITERIA not in search_query:
-        if cache.llen('all_requests_%s' % user_id) == 0:
-            cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-        if cache.llen('all_requests_%s' % user_id) > 0:
-            latest_timestamp = cache.rpop('all_requests_%s' % user_id)
-            timestamp = latest_timestamp.decode('utf-8')
-            if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
-                cache.rpush('all_requests_%s' % user_id, timestamp)
+    if user_restriction_level != '00':
+        if REQ_INCLUSION_CRITERIA in search_query and REQ_EXCLUSION_CRITERIA not in search_query:
+            if cache.llen('all_requests_%s' % user_id) == 0:
                 cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-                logger.debug('Timestamp %s' % timestamp)
-                logger.debug('New timestamp %s' % timestamp_to_add)
-            else:
-                cache.rpush('all_requests_%s' % user_id, timestamp)
-                logger.debug('Timestamp %s' % timestamp)
-        logger.debug('Add timestamp to cache')
+            if cache.llen('all_requests_%s' % user_id) > 0:
+                latest_timestamp = cache.rpop('all_requests_%s' % user_id)
+                timestamp = latest_timestamp.decode('utf-8')
+                if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
+                    cache.rpush('all_requests_%s' % user_id, timestamp)
+                    cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+                    logger.debug('Timestamp %s' % timestamp)
+                    logger.debug('New timestamp %s' % timestamp_to_add)
+                else:
+                    cache.rpush('all_requests_%s' % user_id, timestamp)
+                    logger.debug('Timestamp %s' % timestamp)
+            logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
     current_time = round(time())
