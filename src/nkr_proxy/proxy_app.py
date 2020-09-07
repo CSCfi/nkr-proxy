@@ -183,16 +183,16 @@ def index_search(search_handler=None):
 
     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
 
-    request_limit_exceeded = ''
+    request_limit_exceeded = False
 
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-        request_limit_exceeded = '1'
+        request_limit_exceeded = True
     
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
     )
 
-    if user_restriction_level != '00' or request_limit_exceeded == '1':
+    if user_restriction_level != '00':
 
         amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
         
@@ -207,12 +207,10 @@ def index_search(search_handler=None):
             return response
 
         elif amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
-            response_headers['x-user-daily-request-limit-exceeded'] = ''
+            response_headers['x-user-daily-request-limit-exceeded'] = '1'
             check_sent_emails(user_id)
             if cache.llen('email-to-user:%s' % user_id) == 0:
                 send_email_notification(user_id)
-            user_restriction_level = '00'
-            #entitlements = []
             index_results = search_index(user_restriction_level, entitlements, search_query, method)
             response = make_response(jsonify(index_results), 200)
 
@@ -221,9 +219,9 @@ def index_search(search_handler=None):
 
             return response
 
-        elif amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-            response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-            logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
+        #elif amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+        #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+        #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
 
     else:
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
@@ -254,10 +252,7 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
     user_restriction_level = '00'
 
     for ent in entitlements:
-        if ent == LEVEL_10_RESOURCE_ID and request_limit_exceeded == '1':
-            permission_query = 'fq=+filter(%s:00)' % LEVEL_RESTRICTION_FIELD
-            break
-        if ent == LEVEL_10_RESOURCE_ID:
+        if ent == LEVEL_10_RESOURCE_ID and request_limit_exceeded == False:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
             logger.info('User %s has level 10 access' % user_id)
@@ -265,7 +260,7 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
             user_restriction_level = '10'
             break
     else:
-        # open metadata access only
+        # open metadata access only if user not logged in or request limit is exceeded
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
         logger.info('User %s has no entitlements' % user_id)
         permission_query = 'fq=+filter(%s:00)' % LEVEL_RESTRICTION_FIELD
