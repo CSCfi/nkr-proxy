@@ -192,7 +192,7 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
     )
 
-    if user_restriction_level != '00':
+    if user_restriction_level != '00' or request_limit_exceeded == True:
 
         amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
         
