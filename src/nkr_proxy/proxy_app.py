@@ -187,6 +187,7 @@ def index_search(search_handler=None):
 
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
         request_limit_exceeded = True
+        entitlements = []
     
     search_query, user_restriction_level = generate_query_restrictions(
         user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
@@ -220,7 +221,6 @@ def index_search(search_handler=None):
                     settings.LEVEL_RESTRICTION_FIELD: settings.METADATA_LEVEL_10_RESOURCE_ID
                 }
                 filtered_results.append(doc)
-                break
     
             #if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
             #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
