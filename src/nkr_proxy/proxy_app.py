@@ -194,7 +194,7 @@ def index_search(search_handler=None):
 
     index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-    logger.debug(pformat(index_results))
+    filtered_results = []
 
     for doc in index_results['response']['docs']:
         #logger.debug('Document:')
@@ -202,6 +202,9 @@ def index_search(search_handler=None):
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query, user_restriction_level)
             amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+
+            if amount_of_requests_short_period < int(MAX_REQUESTS_SHORT_PERIOD) and amount_of_requests_long_period < int(MAX_REQUESTS_LONG_PERIOD):
+                filtered_results.append(doc)
             
             if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
@@ -210,11 +213,17 @@ def index_search(search_handler=None):
                     send_email_notification(user_id)
                 
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+                doc = {}
+                filtered_results.append(doc)
     
-            if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-                response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-                logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
+            #if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+            #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+            #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
 
+    logger.debug('Filtered results:')
+    logger.debug(pformat(filtered_results))
+    index_results['response']['docs'] = filtered_results
+    
     response = make_response(jsonify(index_results), 200)
 
     for h, v in response_headers.items():
