@@ -192,45 +192,33 @@ def index_search(search_handler=None):
         user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
     )
 
-    if user_restriction_level != '00' or request_limit_exceeded == True:
+    index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-        amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
-        
-        if amount_of_requests_short_period < int(MAX_REQUESTS_SHORT_PERIOD) and amount_of_requests_long_period < int(MAX_REQUESTS_LONG_PERIOD):
-            store_requests(user_id, search_query, user_restriction_level)
-            index_results = search_index(user_restriction_level, entitlements, search_query, method)
-            response = make_response(jsonify(index_results), 200)
+    for doc in index_results['response']['docs']:
+        logger.debug('Document:')
+        logger.debug(pformat(doc))
+        if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+            store_requests(user_id, search_query)
+            amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+            
+            if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+                response_headers['x-user-daily-request-limit-exceeded'] = '1'
+                check_sent_emails(user_id)
+                if cache.llen('email-notification:%s' % user_id) == 0:
+                    send_email_notification(user_id)
+                
+                logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+    
+            if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+                response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+                logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
 
-            for h, v in response_headers.items():
-                response.headers[h] = v
+    response = make_response(jsonify(index_results), 200)
 
-            return response
+    for h, v in response_headers.items():
+        response.headers[h] = v
 
-        elif amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
-            response_headers['x-user-daily-request-limit-exceeded'] = '1'
-            check_sent_emails(user_id)
-            if cache.llen('email-to-user:%s' % user_id) == 0:
-                send_email_notification(user_id)
-            index_results = search_index(user_restriction_level, entitlements, search_query, method)
-            response = make_response(jsonify(index_results), 200)
-
-            for h, v in response_headers.items():
-                response.headers[h] = v
-
-            return response
-
-        #elif amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-        #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-        #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
-
-    else:
-        index_results = search_index(user_restriction_level, entitlements, search_query, method)
-        response = make_response(jsonify(index_results), 200)
-
-        for h, v in response_headers.items():
-            response.headers[h] = v
-
-        return response
+    return response
 
 
 
@@ -422,18 +410,18 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 def check_sent_emails(user_id):
     current_time = round(time())
     start_from = current_time-60*10
-    email_sending_times = cache.lrange('email-to-user:%s' % user_id, 0, -1)
+    email_sending_times = cache.lrange('email-notification:%s' % user_id, 0, -1)
 
     for sending_time in email_sending_times:
         if float(sending_time) < start_from:
-            cache.lrem('email-to-user:%s' % user_id, 1, sending_time)
+            cache.lrem('email-notification:%s' % user_id, 1, sending_time)
 
 
 def send_email_notification(user_id):
     msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
-    msg.body = "Vuorokauden hakuraja on ylittynyt"
+    msg.body = "Hakuraja on ylittynyt"
     mail.send(msg)
-    cache.rpush('email-to-user:%s' % user_id, round(time()))
+    cache.rpush('email-notification:%s' % user_id, round(time()))
 
 
 def before_request():
