@@ -213,15 +213,18 @@ def index_search(search_handler=None):
                     send_email_notification(user_id)
                 
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
-                doc = {}
+                doc = {
+                    'id': '',
+                    '_document_id': '',
+                    'description': '',
+                    settings.LEVEL_RESTRICTION_FIELD: settings.METADATA_LEVEL_10_RESOURCE_ID
+                }
                 filtered_results.append(doc)
     
             #if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
             #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
             #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
 
-    logger.debug('Filtered results:')
-    logger.debug(pformat(filtered_results))
     index_results['response']['docs'] = filtered_results
     
     response = make_response(jsonify(index_results), 200)
