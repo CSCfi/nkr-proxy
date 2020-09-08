@@ -226,23 +226,14 @@ def index_search(search_handler=None):
             #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
             #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
 
-    if len(filtered_results) > 0:
-        index_results['response']['docs'] = filtered_results
+    index_results['response']['docs'] = filtered_results
         
-        response = make_response(jsonify(index_results), 200)
+    response = make_response(jsonify(index_results), 200)
 
-        for h, v in response_headers.items():
-            response.headers[h] = v
+    for h, v in response_headers.items():
+        response.headers[h] = v
 
-        return response
-
-    else:
-        response = make_response(jsonify(index_results), 200)
-
-        for h, v in response_headers.items():
-            response.headers[h] = v
-
-        return response
+    return response
 
 
 @bp.route("/")
@@ -271,6 +262,8 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
             user_restriction_level = '10'
             break
     else:
+        for ent in entitlements:
+            logger.debug('Entitlements: %s' % ent)
         # open metadata access only if user not logged in or request limit is exceeded
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
         logger.info('User %s has no entitlements' % user_id)
