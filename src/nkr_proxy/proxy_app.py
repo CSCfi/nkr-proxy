@@ -226,15 +226,23 @@ def index_search(search_handler=None):
             #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
             #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
 
-    index_results['response']['docs'] = filtered_results
-    
-    response = make_response(jsonify(index_results), 200)
+    if len(filtered_results) > 0:
+        index_results['response']['docs'] = filtered_results
+        
+        response = make_response(jsonify(index_results), 200)
 
-    for h, v in response_headers.items():
-        response.headers[h] = v
+        for h, v in response_headers.items():
+            response.headers[h] = v
 
-    return response
+        return response
 
+    else:
+        response = make_response(jsonify(index_results), 200)
+
+        for h, v in response_headers.items():
+            response.headers[h] = v
+
+        return response
 
 
 @bp.route("/")
