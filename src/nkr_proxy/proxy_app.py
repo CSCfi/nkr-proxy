@@ -220,6 +220,7 @@ def index_search(search_handler=None):
                     settings.LEVEL_RESTRICTION_FIELD: settings.METADATA_LEVEL_10_RESOURCE_ID
                 }
                 filtered_results.append(doc)
+                break
     
             #if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
             #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
