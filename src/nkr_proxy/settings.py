@@ -94,6 +94,7 @@ class Settings():
         'MAIL_DEFAULT_SENDER',
         'MAIL_MAX_EMAILS',
         'MAIL_RECIPIENT',
+        'INITIAL_QUERY_INCLUSION_CRITERIA',
     )
 
     INDEX_HEADERS = {}

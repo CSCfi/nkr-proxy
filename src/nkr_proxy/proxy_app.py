@@ -27,8 +27,7 @@ LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
 ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIELD]
 VERIFY_TLS = settings.VERIFY_TLS
-DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
-EPOCH = datetime(1970, 1, 1)
+QUERY_INCLUSION_CRITERIA = settings.INITIAL_QUERY_INCLUSION_CRITERIA
 MAX_REQUESTS_SHORT_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_SHORT_PERIOD
 MAX_REQUESTS_LONG_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_LONG_PERIOD
 REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
@@ -41,6 +40,8 @@ MAIL_USE_SSL = settings.MAIL_USE_SSL
 MAIL_DEFAULT_SENDER = settings.MAIL_DEFAULT_SENDER
 MAIL_MAX_EMAILS = settings.MAIL_MAX_EMAILS
 MAIL_RECIPIENT = settings.MAIL_RECIPIENT
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+EPOCH = datetime(1970, 1, 1)
 
 bp = Blueprint('api', __name__)
 
@@ -181,21 +182,27 @@ def index_search(search_handler=None):
             if blacklisted.get('blacklisted'):
                 response_headers['x-user-blacklisted'] = blacklisted.get('date', '-')
 
+    initial_query = ''
+    if QUERY_INCLUSION_CRITERIA in query_string:
+        initial_query = query_string
+    
     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
 
     request_limit_exceeded = False
 
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
         request_limit_exceeded = True
-        entitlements = []
+        #entitlements = []
     
     search_query, user_restriction_level = generate_query_restrictions(
-        user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
+        user_id, '%s?%s' % (search_handler, query_string), entitlements
     )
 
-    index_results = search_index(user_restriction_level, entitlements, search_query, method)
-
-    filtered_results = []
+    if request_limit_exceeded == False:
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
+    
+    else:
+        index_results = search_index(user_restriction_level, entitlements, initial_query, method)
 
     for doc in index_results['response']['docs']:
         #logger.debug('Document:')
@@ -203,30 +210,16 @@ def index_search(search_handler=None):
         if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
             store_requests(user_id, search_query, user_restriction_level)
             amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
-
-            if amount_of_requests_short_period < int(MAX_REQUESTS_SHORT_PERIOD) and amount_of_requests_long_period < int(MAX_REQUESTS_LONG_PERIOD):
-                filtered_results.append(doc)
             
             if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+                request_limit_exceeded = True
                 response_headers['x-user-daily-request-limit-exceeded'] = '1'
                 check_sent_emails(user_id)
                 if cache.llen('email-notification:%s' % user_id) == 0:
                     send_email_notification(user_id)
                 
                 logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
-                doc = {
-                    'id': '',
-                    '_document_id': '',
-                    'description': '',
-                    settings.LEVEL_RESTRICTION_FIELD: settings.METADATA_LEVEL_10_RESOURCE_ID
-                }
-                filtered_results.append(doc)
     
-            #if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-            #    response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-            #    logger.debug('request limit exceeded %s' % amount_of_requests_long_period)
-
-    index_results['response']['docs'] = filtered_results
         
     response = make_response(jsonify(index_results), 200)
 
@@ -242,7 +235,7 @@ def hello():
     return "<h1 style='color:blue'>Hello There!</h1>"
 
 
-def generate_query_restrictions(user_id, original_query, entitlements, request_limit_exceeded):
+def generate_query_restrictions(user_id, original_query, entitlements):
     """
     Generate a query to augment the original query to index, to only target
     particular permitted documents according to entitlements. Additionally,
@@ -254,7 +247,7 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
     user_restriction_level = '00'
 
     for ent in entitlements:
-        if ent == LEVEL_10_RESOURCE_ID and request_limit_exceeded == False:
+        if ent == LEVEL_10_RESOURCE_ID:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
             logger.info('User %s has level 10 access' % user_id)
@@ -262,8 +255,6 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
             user_restriction_level = '10'
             break
     else:
-        for ent in entitlements:
-            logger.debug('Entitlements: %s' % ent)
         # open metadata access only if user not logged in or request limit is exceeded
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
         logger.info('User %s has no entitlements' % user_id)
