@@ -199,9 +199,15 @@ def index_search(search_handler=None):
     )
 
     if request_limit_exceeded == False:
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, query_string), entitlements
+        )
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
     
     else:
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, initial_query), entitlements
+        )
         index_results = search_index(user_restriction_level, entitlements, initial_query, method)
 
     for doc in index_results['response']['docs']:
