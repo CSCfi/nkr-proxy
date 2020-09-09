@@ -184,6 +184,7 @@ def index_search(search_handler=None):
 
     initial_query = ''
     if QUERY_INCLUSION_CRITERIA in query_string:
+        logger.debug('query string: %s' % query_string)
         initial_query = query_string
     
     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
@@ -193,10 +194,6 @@ def index_search(search_handler=None):
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
         request_limit_exceeded = True
         #entitlements = []
-    
-    search_query, user_restriction_level = generate_query_restrictions(
-        user_id, '%s?%s' % (search_handler, query_string), entitlements
-    )
 
     if request_limit_exceeded == False:
         search_query, user_restriction_level = generate_query_restrictions(
