@@ -193,19 +193,26 @@ def index_search(search_handler=None):
 
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
         request_limit_exceeded = True
+        response_headers['x-user-daily-request-limit-exceeded'] = '1'
+        check_sent_emails(user_id)
+        
+        if cache.llen('email-notification:%s' % user_id) == 0:
+            send_email_notification(user_id)
+                
+        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+        
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, initial_query), entitlements
+        )
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
         #entitlements = []
 
-    if request_limit_exceeded == False:
+    else:
         search_query, user_restriction_level = generate_query_restrictions(
             user_id, '%s?%s' % (search_handler, query_string), entitlements
         )
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
-    
-    else:
-        search_query, user_restriction_level = generate_query_restrictions(
-            user_id, '%s?%s' % (search_handler, initial_query), entitlements
-        )
-        index_results = search_index(user_restriction_level, entitlements, initial_query, method)
+        
 
     for doc in index_results['response']['docs']:
         #logger.debug('Document:')
@@ -214,15 +221,6 @@ def index_search(search_handler=None):
             store_requests(user_id, search_query, user_restriction_level)
             amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
             
-            if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
-                request_limit_exceeded = True
-                response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                check_sent_emails(user_id)
-                if cache.llen('email-notification:%s' % user_id) == 0:
-                    send_email_notification(user_id)
-                
-                logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
-    
         
     response = make_response(jsonify(index_results), 200)
 
