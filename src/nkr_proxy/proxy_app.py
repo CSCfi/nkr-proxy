@@ -22,12 +22,13 @@ from nkr_proxy.services import rems
 
 logger = logging.getLogger(__name__)
 
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+EPOCH = datetime(1970, 1, 1)
 LEVEL_10_RESOURCE_ID = settings.METADATA_LEVEL_10_RESOURCE_ID
 LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
 ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIELD]
 VERIFY_TLS = settings.VERIFY_TLS
-QUERY_INCLUSION_CRITERIA = settings.INITIAL_QUERY_INCLUSION_CRITERIA
 MAX_REQUESTS_SHORT_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_SHORT_PERIOD
 MAX_REQUESTS_LONG_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_LONG_PERIOD
 REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
@@ -40,8 +41,8 @@ MAIL_USE_SSL = settings.MAIL_USE_SSL
 MAIL_DEFAULT_SENDER = settings.MAIL_DEFAULT_SENDER
 MAIL_MAX_EMAILS = settings.MAIL_MAX_EMAILS
 MAIL_RECIPIENT = settings.MAIL_RECIPIENT
-DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
-EPOCH = datetime(1970, 1, 1)
+INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
+EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
 
 bp = Blueprint('api', __name__)
 
@@ -182,52 +183,57 @@ def index_search(search_handler=None):
             if blacklisted.get('blacklisted'):
                 response_headers['x-user-blacklisted'] = blacklisted.get('date', '-')
 
-    initial_query = ''
-    if QUERY_INCLUSION_CRITERIA in query_string:
-        logger.debug('query string: %s' % query_string)
-        initial_query = query_string
     
     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
 
-    request_limit_exceeded = False
-
+    # If request limit is exceeded, user restriction is set to 0-level
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-        request_limit_exceeded = True
-        response_headers['x-user-daily-request-limit-exceeded'] = '1'
-        check_sent_emails(user_id)
-        
-        if cache.llen('email-notification:%s' % user_id) == 0:
-            send_email_notification(user_id)
-                
-        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+        request_limit_exceeded = True         
+        logger.debug('Request limit exceeded, set query restrictions to 0 level')
         
         search_query, user_restriction_level = generate_query_restrictions(
-            user_id, '%s?%s' % (search_handler, initial_query), entitlements
+            user_id, '%s?%s' % (search_handler, search_query), entitlements, request_limit_exceeded
         )
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
-        #entitlements = []
+
+        response = make_response(jsonify(index_results), 200)
+
+        for h, v in response_headers.items():
+            response.headers[h] = v
+
+        return response
 
     else:
+        request_limit_exceeded = False
         search_query, user_restriction_level = generate_query_restrictions(
-            user_id, '%s?%s' % (search_handler, query_string), entitlements
+            user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
         )
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
-        
 
-    for doc in index_results['response']['docs']:
-        #logger.debug('Document:')
-        #logger.debug(pformat(doc))
-        if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
-            store_requests(user_id, search_query, user_restriction_level)
-            amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+        if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
+
+            for doc in index_results['response']['docs']:
+                #logger.debug('Document:')
+                #logger.debug(pformat(doc))
+                if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+                    store_requests(user_id, search_query, user_restriction_level)
+                    amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+                    
+                    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+                        response_headers['x-user-daily-request-limit-exceeded'] = '1'
+                        check_sent_emails(user_id)
             
-        
-    response = make_response(jsonify(index_results), 200)
+                        if cache.llen('email-notification:%s' % user_id) == 0:
+                            send_email_notification(user_id)
+                                
+                        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)         
+            
+        response = make_response(jsonify(index_results), 200)
 
-    for h, v in response_headers.items():
-        response.headers[h] = v
+        for h, v in response_headers.items():
+            response.headers[h] = v
 
-    return response
+        return response
 
 
 @bp.route("/")
@@ -236,7 +242,7 @@ def hello():
     return "<h1 style='color:blue'>Hello There!</h1>"
 
 
-def generate_query_restrictions(user_id, original_query, entitlements):
+def generate_query_restrictions(user_id, original_query, entitlements, request_limit_exceeded):
     """
     Generate a query to augment the original query to index, to only target
     particular permitted documents according to entitlements. Additionally,
@@ -248,7 +254,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     user_restriction_level = '00'
 
     for ent in entitlements:
-        if ent == LEVEL_10_RESOURCE_ID:
+        if ent == LEVEL_10_RESOURCE_ID and request_limit_exceeded == False:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
             logger.info('User %s has level 10 access' % user_id)
@@ -277,22 +283,20 @@ def store_requests(user_id, search_query, user_restriction_level):
     #cache.sadd('all_requests_test', str(round(time())))
     # This could possibly be replaced by using SADD command
     timestamp_to_add = str(round(time()))
-    if user_restriction_level != '00':
-        if REQ_INCLUSION_CRITERIA in search_query and REQ_EXCLUSION_CRITERIA not in search_query:
-            if cache.llen('all_requests_%s' % user_id) == 0:
-                cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-            if cache.llen('all_requests_%s' % user_id) > 0:
-                latest_timestamp = cache.rpop('all_requests_%s' % user_id)
-                timestamp = latest_timestamp.decode('utf-8')
-                if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
-                    cache.rpush('all_requests_%s' % user_id, timestamp)
-                    cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-                    logger.debug('Timestamp %s' % timestamp)
-                    logger.debug('New timestamp %s' % timestamp_to_add)
-                else:
-                    cache.rpush('all_requests_%s' % user_id, timestamp)
-                    logger.debug('Timestamp %s' % timestamp)
-            logger.debug('Add timestamp to cache')
+    if cache.llen('all_requests_%s' % user_id) == 0:
+        cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+    if cache.llen('all_requests_%s' % user_id) > 0:
+        latest_timestamp = cache.rpop('all_requests_%s' % user_id)
+        timestamp = latest_timestamp.decode('utf-8')
+    if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
+        cache.rpush('all_requests_%s' % user_id, timestamp)
+        cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+        logger.debug('Timestamp %s' % timestamp)
+        logger.debug('New timestamp %s' % timestamp_to_add)
+    else:
+        cache.rpush('all_requests_%s' % user_id, timestamp)
+        logger.debug('Timestamp %s' % timestamp)
+        logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
     current_time = round(time())
