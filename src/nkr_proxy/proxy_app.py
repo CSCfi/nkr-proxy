@@ -192,7 +192,7 @@ def index_search(search_handler=None):
         logger.debug('Request limit exceeded, set query restrictions to 0 level')
         
         search_query, user_restriction_level = generate_query_restrictions(
-            user_id, '%s?%s' % (search_handler, search_query), entitlements, request_limit_exceeded
+            user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
         )
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
