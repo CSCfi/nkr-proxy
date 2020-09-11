@@ -213,8 +213,8 @@ def index_search(search_handler=None):
         if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
 
             for doc in index_results['response']['docs']:
-                #logger.debug('Document:')
-                #logger.debug(pformat(doc))
+                logger.debug('Document:')
+                logger.debug(pformat(doc))
                 if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
                     store_requests(user_id, search_query, user_restriction_level)
                     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
@@ -226,14 +226,24 @@ def index_search(search_handler=None):
                         if cache.llen('email-notification:%s' % user_id) == 0:
                             send_email_notification(user_id)
                                 
-                        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)         
+                        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+
+                        index_results = []
+
+                        response = make_response(jsonify(index_results), 200)
+
+                        for h, v in response_headers.items():
+                            response.headers[h] = v
+
+                        return response         
             
-        response = make_response(jsonify(index_results), 200)
+        else:
+            response = make_response(jsonify(index_results), 200)
 
-        for h, v in response_headers.items():
-            response.headers[h] = v
+            for h, v in response_headers.items():
+                response.headers[h] = v
 
-        return response
+            return response
 
 
 @bp.route("/")
