@@ -235,7 +235,14 @@ def index_search(search_handler=None):
                         for h, v in response_headers.items():
                             response.headers[h] = v
 
-                        return response         
+                        return response   
+
+            response = make_response(jsonify(index_results), 200)
+
+            for h, v in response_headers.items():
+                response.headers[h] = v
+
+            return response      
             
         else:
             response = make_response(jsonify(index_results), 200)
