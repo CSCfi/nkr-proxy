@@ -219,7 +219,7 @@ def index_search(search_handler=None):
                     store_requests(user_id, search_query, user_restriction_level)
                     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
                     
-                    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+                    if amount_of_requests_short_period > int(MAX_REQUESTS_SHORT_PERIOD):
                         response_headers['x-user-daily-request-limit-exceeded'] = '1'
                         check_sent_emails(user_id)
             
@@ -227,8 +227,6 @@ def index_search(search_handler=None):
                             send_email_notification(user_id)
                                 
                         logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
-
-                        index_results = []
 
                         response = make_response(jsonify(index_results), 200)
 
@@ -305,15 +303,15 @@ def store_requests(user_id, search_query, user_restriction_level):
     if cache.llen('all_requests_%s' % user_id) > 0:
         latest_timestamp = cache.rpop('all_requests_%s' % user_id)
         timestamp = latest_timestamp.decode('utf-8')
-    if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
-        cache.rpush('all_requests_%s' % user_id, timestamp)
-        cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-        logger.debug('Timestamp %s' % timestamp)
-        logger.debug('New timestamp %s' % timestamp_to_add)
-    else:
-        cache.rpush('all_requests_%s' % user_id, timestamp)
-        logger.debug('Timestamp %s' % timestamp)
-        logger.debug('Add timestamp to cache')
+        if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
+            cache.rpush('all_requests_%s' % user_id, timestamp)
+            cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+            logger.debug('Timestamp %s' % timestamp)
+            logger.debug('New timestamp %s' % timestamp_to_add)
+        else:
+            cache.rpush('all_requests_%s' % user_id, timestamp)
+            logger.debug('Timestamp %s' % timestamp)
+            logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
     current_time = round(time())
