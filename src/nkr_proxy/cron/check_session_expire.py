@@ -252,7 +252,7 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
         user_id = key.decode('utf-8').split('user-first-active:')[1]
         user_first_active_ts = int(cache.get(key).decode('utf-8'))
 
-        if round(time.time()) - max_seconds_after_user_first_active >= user_first_active_ts:
+        if round(time.time()) - int(max_seconds_after_user_first_active) >= user_first_active_ts:
             
             application_states = close_rems_application(user_id)
 
