@@ -113,7 +113,7 @@ def index_search(search_handler=None):
             # the time when user was first active is used for closing the session 
             # regardless of whether user is currently active or inactive
             user_first_active_ts = cache.get('user-first-active:%s' % user_id)
-            logger.debug('User first active: %s', % user_first_active_ts)
+            logger.debug('User first active: %s' % user_first_active_ts)
             # if user_first_active_ts does not have a value yet, get applications and 
             # set the timestamp of the first application as its value
             if user_first_active_ts is None:
