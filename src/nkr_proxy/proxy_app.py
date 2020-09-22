@@ -109,6 +109,25 @@ def index_search(search_handler=None):
             # user has an active level 10 entitlemnt -> track user activity
             cache.set('user-last-active:%s' % user_id, round(time()))
             response_headers['x-user-access-status'] = 'ok'
+
+            # the time when user was first active is used for closing the session 
+            # regardless of whether user is currently active or inactive
+            user_first_active_ts = cache.get('user-first-active:%s' % user_id)
+            logger.debug('User first active: %s', % user_first_active_ts)
+            # if user_first_active_ts does not have a value yet, get applications and 
+            # set the timestamp of the first application as its value
+            if user_first_active_ts is None:
+                apps = rems.get_rems_user_applications(
+                    user_id,
+                    filter_resource=LEVEL_10_RESOURCE_ID
+                )
+
+                if apps:
+                    # latest application is first, therefore get the last item in list
+                    app = rems.get_rems_user_application(user_id, app[len(apps)-1]['application/id'])
+                    date_submitted = app['application/first-submitted']
+                    cache.set('user-first-active:%s' % user_id, round(time()))
+
         else:
             # check if user has a last-known-application, check its status,
             # and make that info available in the response
