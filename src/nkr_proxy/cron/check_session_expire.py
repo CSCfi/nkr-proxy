@@ -101,7 +101,7 @@ class Stats():
 
 
 def user_is_active(last_active_ts, session_max_age_seconds):
-    return (round(time.time()) - int(last_active_ts)) < session_max_age_seconds
+    return (round(time.time()) - int(last_active_ts)) < int(session_max_age_seconds)
 
 
 def close_rems_application(user_id):
