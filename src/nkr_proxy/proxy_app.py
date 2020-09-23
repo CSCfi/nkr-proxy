@@ -5,6 +5,7 @@ import logging
 from base64 import b64encode
 from random import shuffle
 from time import time
+from datetime import datetime
 
 from flask import Flask, g, Blueprint, jsonify, make_response, request
 import requests
@@ -24,6 +25,8 @@ LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
 ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIELD]
 VERIFY_TLS = settings.VERIFY_TLS
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+EPOCH = datetime(1970, 1, 1)
 
 
 bp = Blueprint('api', __name__)
@@ -126,7 +129,8 @@ def index_search(search_handler=None):
                     # latest application is first, therefore get the last item in list
                     app = rems.get_rems_user_application(user_id, apps[len(apps)-1]['application/id'])
                     date_submitted = app['application/first-submitted']
-                    cache.set('user-first-active:%s' % user_id, round(time()))
+                    epoch_time = (datetime.strptime(date_submitted, DATE_FORMAT) - EPOCH).total_seconds()
+                    cache.set('user-first-active:%s' % user_id, epoch_time)
 
         else:
             # check if user has a last-known-application, check its status,
