@@ -130,7 +130,7 @@ def index_search(search_handler=None):
                     app = rems.get_rems_user_application(user_id, apps[len(apps)-1]['application/id'])
                     date_submitted = app['application/first-submitted']
                     epoch_time = (datetime.strptime(date_submitted, DATE_FORMAT) - EPOCH).total_seconds()
-                    cache.set('user-first-active:%s' % user_id, epoch_time)
+                    cache.set('user-first-active:%s' % user_id, round(epoch_time))
 
         else:
             # check if user has a last-known-application, check its status,
