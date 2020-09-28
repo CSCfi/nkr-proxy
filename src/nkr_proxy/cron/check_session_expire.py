@@ -262,6 +262,9 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
 
             elif all(app['closed'] is True for app in application_states):
                 cache.delete(key)
+
+            elif all(app['closed'] is False for app in application_states):
+                logger.info('Failed to close application(s)')
             
             else:
                 logger.info(

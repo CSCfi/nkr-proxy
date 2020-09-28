@@ -126,8 +126,8 @@ def index_search(search_handler=None):
                 )
 
                 if apps:
-                    # latest application is first, therefore get the last item in list
-                    app = rems.get_rems_user_application(user_id, apps[len(apps)-1]['application/id'])
+                    # get the latest application
+                    app = rems.get_rems_user_application(user_id, apps[0]['application/id'])
                     date_submitted = app['application/first-submitted']
                     epoch_time = (datetime.strptime(date_submitted, DATE_FORMAT) - EPOCH).total_seconds()
                     cache.set('user-first-active:%s' % user_id, round(epoch_time))
