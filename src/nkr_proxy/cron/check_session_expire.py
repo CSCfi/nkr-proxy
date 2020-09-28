@@ -250,7 +250,7 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
     for key in cache.scan_iter('user-first-active:*'):   
         
         user_id = key.decode('utf-8').split('user-first-active:')[1]
-        user_first_active_ts = round(cache.get(key).decode('utf-8'))
+        user_first_active_ts = round(float(cache.get(key).decode('utf-8')))
 
         if round(time.time()) - int(max_seconds_after_user_first_active) >= user_first_active_ts:
             
