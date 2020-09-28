@@ -189,6 +189,7 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
     """
     Check all users' cached session activity, and close their REMS application if
     the user is deemed to be inactive.
+    After certain time period REMS application is closed regardless of user activity.
     """
     stats = Stats()
     logger.info('//---------------------------------------------------------------')
@@ -259,18 +260,34 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
             if application_states is None:
                 logger.info('Closing session - User %s had no relevant entitlements to close' % user_id)
                 cache.delete(key)
+                stats.n_close_missed += 1
 
             elif all(app['closed'] is True for app in application_states):
                 cache.delete(key)
+                stats.n_applications_closed += len(application_states)
+                stats.n_users_close_success += 1
+                if len(application_states) > 1:
+                    stats.multiple_applications_closed = True
 
             elif all(app['closed'] is False for app in application_states):
                 logger.info('Failed to close application(s)')
+                stats.n_close_failed += len(application_states)
+                stats.n_users_close_failed += 1
+                if len(application_states) > 1:
+                    stats.multiple_applications_close_failed = True
             
             else:
                 logger.info(
                     'Closing session - some applications were closed for user %s: %s'
                     % (user_id, str(application_states))
                 )
+                stats.n_applications_closed += len(app for app in application_states if app['closed'] is True)
+                stats.n_users_close_success += 1
+
+                stats.n_close_failed += len(app for app in application_states if app['closed'] is False)
+                stats.n_users_close_failed += 1
+
+                stats.only_some_closed = True
 
 
     stats.log_stats()
