@@ -137,7 +137,7 @@ def get_all_rems_applications(application_state):
 
     try:
         response = http_request(
-            'https://%s/api/applications?query=state:%s' % (settings.REMS_HOST, application_state),
+            'https://%s/api/applications?query=query=state:%s' % (settings.REMS_HOST, application_state),
             headers=headers
         )
     except:
