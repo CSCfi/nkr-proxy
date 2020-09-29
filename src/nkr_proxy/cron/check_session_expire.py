@@ -185,11 +185,10 @@ def track_registered_only_users():
     logger.debug('Loaded %d registerd-only users into session tracking' % n_registered_only_users)
 
 
-def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_user_first_active):
+def check_and_close_expired_sessions(session_max_age_seconds):
     """
     Check all users' cached session activity, and close their REMS application if
     the user is deemed to be inactive.
-    After certain time period REMS application is closed regardless of user activity.
     """
     stats = Stats()
     logger.info('//---------------------------------------------------------------')
@@ -248,6 +247,20 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
 
                 stats.only_some_closed = True
 
+
+    stats.log_stats()
+
+    logger.info('---------------------------------------------------------------//')
+
+
+def check_and_close_expired_active_sessions(max_seconds_after_user_first_active):
+    """
+    After maximum duration of REMS application it is closed regardless of user activity.
+    """
+
+    stats = Stats()
+    logger.info('Begin checking active expired sessions...')
+    
     for key in cache.scan_iter('user-first-active:*'):   
         
         user_id = key.decode('utf-8').split('user-first-active:')[1]
@@ -290,17 +303,13 @@ def check_and_close_expired_sessions(session_max_age_seconds, max_seconds_after_
                 stats.only_some_closed = True
 
 
-    stats.log_stats()
-
-    logger.info('---------------------------------------------------------------//')
-
-
 def main():
     try:
         # check or set special key so that this action is being executed only once in a single process
         if cache.set('session_check_in_progress', 1, nx=True, ex=settings.SESSION_CLEANUP_MAX_TIME):
             # nx=True -> "get or set", only sets this value if did not exist yet
-            check_and_close_expired_sessions(settings.SESSION_TIMEOUT_LIMIT, settings.SESSION_TIMEOUT_LONGER_LIMIT)
+            check_and_close_expired_sessions(settings.SESSION_TIMEOUT_LIMIT)
+            check_and_close_expired_active_sessions(settings.SESSION_TIMEOUT_LONGER_LIMIT)
         else:
             logger.info(
                 'Session checking is already being executed by another process '
