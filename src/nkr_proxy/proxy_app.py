@@ -217,9 +217,6 @@ def index_search(search_handler=None):
         )
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-        response_headers['x-user-daily-request-limit-exceeded'] = ''
-        response_headers['x-user-monthly-request-limit-exceeded'] = ''
-
 
         if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
 
