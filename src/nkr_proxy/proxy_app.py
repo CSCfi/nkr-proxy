@@ -215,6 +215,8 @@ def index_search(search_handler=None):
         index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
         response_headers['x-user-daily-request-limit-exceeded'] = ''
+        response_headers['x-user-monthly-request-limit-exceeded'] = ''
+
 
         if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
 
@@ -231,7 +233,11 @@ def index_search(search_handler=None):
                         check_sent_emails(user_id)
             
                         if cache.llen('email-notification:%s' % user_id) == 0:
-                            send_email_notification(user_id)   
+                            send_email_notification(user_id)
+
+                    if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+                        logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
+                        response_headers['x-user-monthly-request-limit-exceeded'] = '1'   
 
             response = make_response(jsonify(index_results), 200)
 
