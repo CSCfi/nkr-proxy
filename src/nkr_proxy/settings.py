@@ -96,6 +96,8 @@ class Settings():
         'MAIL_RECIPIENT',
         'INCLUDE_REQUESTS_WITH_QUERY_PARAM',
         'EXCLUDE_REQUESTS_WITH_QUERY_PARAM',
+        'EMAIL_SHORT_PERIOD',
+        'EMAIL_LONG_PERIOD',
     )
 
     INDEX_HEADERS = {}

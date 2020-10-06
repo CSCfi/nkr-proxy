@@ -43,6 +43,8 @@ MAIL_MAX_EMAILS = settings.MAIL_MAX_EMAILS
 MAIL_RECIPIENT = settings.MAIL_RECIPIENT
 INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
 EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
+EMAIL_SHORT_PERIOD = settings.EMAIL_SHORT_PERIOD
+EMAIL_LONG_PERIOD = settings.EMAIL_LONG_PERIOD
 
 bp = Blueprint('api', __name__)
 
@@ -230,14 +232,20 @@ def index_search(search_handler=None):
                     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
                         logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
                         response_headers['x-user-daily-request-limit-exceeded'] = '1'
+                        limit_type = EMAIL_SHORT_PERIOD
                         check_sent_emails(user_id)
             
                         if cache.llen('email-notification:%s' % user_id) == 0:
-                            send_email_notification(user_id)
+                            send_email_notification(user_id, limit_type)
 
                     if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
                         logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
-                        response_headers['x-user-monthly-request-limit-exceeded'] = '1'   
+                        response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+                        limit_type = EMAIL_LONG_PERIOD
+                        check_sent_emails(user_id)
+            
+                        if cache.llen('email-notification:%s' % user_id) == 0:
+                            send_email_notification(user_id, limit_type)   
 
             response = make_response(jsonify(index_results), 200)
 
@@ -448,9 +456,9 @@ def check_sent_emails(user_id):
             cache.lrem('email-notification:%s' % user_id, 1, sending_time)
 
 
-def send_email_notification(user_id):
+def send_email_notification(user_id, limit_type):
     msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
-    msg.body = "Hakuraja on ylittynyt"
+    msg.body = "%s hakuraja on ylittynyt" % limit_type
     mail.send(msg)
     cache.rpush('email-notification:%s' % user_id, round(time()))
 
