@@ -45,6 +45,7 @@ INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
 EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
 EMAIL_SHORT_PERIOD = settings.EMAIL_SHORT_PERIOD
 EMAIL_LONG_PERIOD = settings.EMAIL_LONG_PERIOD
+EMAIL_LIMIT_SECONDS = settings.LIMIT_FOR_SENDING_NEW_EMAIL
 
 bp = Blueprint('api', __name__)
 
@@ -448,7 +449,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
 def check_sent_emails(user_id):
     current_time = round(time())
-    start_from = current_time-60*10
+    start_from = current_time-int(EMAIL_LIMIT_SECONDS)
     email_sending_times = cache.lrange('email-notification:%s' % user_id, 0, -1)
 
     for sending_time in email_sending_times:

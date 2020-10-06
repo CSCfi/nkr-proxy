@@ -98,6 +98,7 @@ class Settings():
         'EXCLUDE_REQUESTS_WITH_QUERY_PARAM',
         'EMAIL_SHORT_PERIOD',
         'EMAIL_LONG_PERIOD',
+        'LIMIT_FOR_SENDING_NEW_EMAIL',
     )
 
     INDEX_HEADERS = {}
