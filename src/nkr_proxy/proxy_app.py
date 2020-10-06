@@ -300,18 +300,18 @@ def store_requests(user_id, search_query, user_restriction_level):
     timestamp_to_add = str(round(time()))
     if cache.llen('all_requests_%s' % user_id) == 0:
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
-    if cache.llen('all_requests_%s' % user_id) > 0:
+    elif cache.llen('all_requests_%s' % user_id) > 0:
         latest_timestamp = cache.rpop('all_requests_%s' % user_id)
         timestamp = latest_timestamp.decode('utf-8')
         if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
             cache.rpush('all_requests_%s' % user_id, timestamp)
             cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
             logger.debug('Timestamp %s' % timestamp)
-            logger.debug('New timestamp %s' % timestamp_to_add)
+            logger.debug('Added new timestamp %s' % timestamp_to_add)
         else:
+            # push ts back to the list after having removed it with rpop when no new ts is added
             cache.rpush('all_requests_%s' % user_id, timestamp)
             logger.debug('Timestamp %s' % timestamp)
-            logger.debug('Add timestamp to cache')
 
 def count_requests(user_id):
     current_time = round(time())
