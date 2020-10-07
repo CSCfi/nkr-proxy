@@ -104,7 +104,7 @@ def user_is_active(last_active_ts, session_max_age_seconds):
     return (round(time.time()) - int(last_active_ts)) < int(session_max_age_seconds)
 
 
-def close_rems_application(user_id):
+def close_rems_application(user_id, close_message):
     logger.info('Retrieving and closing REMS application for user %s...' % user_id)
 
     ents = rems.get_rems_entitlements(user_id, full_entitlements=True)
@@ -128,7 +128,7 @@ def close_rems_application(user_id):
             application_closed = rems.close_rems_application(
                 user_id,
                 ent['application-id'],
-                settings.REMS_SESSION_CLOSE_MESSAGE,
+                close_message,
                 close_as_user=settings.REMS_SESSION_CLOSE_USER
             )
 
@@ -213,7 +213,7 @@ def check_and_close_expired_sessions(session_max_age_seconds):
         else:
             logger.info('User %s is inactive' % user_id)
 
-            application_states = close_rems_application(user_id)
+            application_states = close_rems_application(user_id, settings.REMS_SESSION_CLOSE_MESSAGE)
 
             if application_states is None:
                 logger.info('User %s had no relevant entitlements to close' % user_id)
@@ -268,7 +268,7 @@ def check_and_close_expired_active_sessions(max_seconds_after_user_first_active)
 
         if round(time.time()) - int(max_seconds_after_user_first_active) >= user_first_active_ts:
             
-            application_states = close_rems_application(user_id)
+            application_states = close_rems_application(user_id, settings.REMS_CLOSE_ACTIVE_SESSION_MESSAGE)
 
             if application_states is None:
                 logger.info('Closing session - User %s had no relevant entitlements to close' % user_id)
