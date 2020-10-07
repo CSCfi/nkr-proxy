@@ -148,6 +148,10 @@ def index_search(search_handler=None):
                 close_info = rems.get_rems_application_close_info(app)
 
                 response_headers['x-user-access-status'] = close_info['custom_state']
+                logger.debug('Close info %s' % close_info['custom_state'])
+
+                if close_info['custom_state'] == 'active-session-expired-closed':
+                    response_headers['x-user-session-expired-closed'] = 'ok'
 
                 if 'comment' in close_info:
                     response_headers['x-user-access-status-comment'] = \
