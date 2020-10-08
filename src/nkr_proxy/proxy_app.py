@@ -187,7 +187,7 @@ def index_search(search_handler=None):
             if blacklisted.get('blacklisted'):
                 response_headers['x-user-blacklisted'] = blacklisted.get('date', '-')
 
-    index_results, response_headers = check_request_restriction(user_id, response_headers, search_handler, query_string, entitlements)
+    index_results, response_headers = check_request_restriction(user_id, response_headers, search_handler, method, query_string, entitlements)
 
     response = make_response(jsonify(index_results), 200)
 
@@ -197,7 +197,7 @@ def index_search(search_handler=None):
     return response
     
     
-def check_request_restriction(user_id, response_headers, search_handler, query_string, entitlements):
+def check_request_restriction(user_id, response_headers, search_handler, method, query_string, entitlements):
     """
         - Get the number of requests of the user
         - Check whether the request limit is exceeded
