@@ -328,8 +328,8 @@ def store_requests(user_id, search_query, user_restriction_level):
 
 def count_requests(user_id):
     current_time = round(time())
-    short_time_frame_start = current_time-60*10
-    long_time_frame_start = current_time-60*60*2
+    short_time_frame_start = current_time-int(settings.SHORT_TIMEFRAME)
+    long_time_frame_start = current_time-int(settings.LONG_TIMEFRAME)
     requests_of_user = []
     request_count_short_period = 0
     request_count_long_period = 0
