@@ -197,71 +197,71 @@ def index_search(search_handler=None):
     return response
     
     
-    def check_request_restriction(user_id, response_headers, search_handler, query_string, entitlements)
-        """
-            - Get the number of requests of the user
-            - Check whether the request limit is exceeded
-            - Call Store request method if the limit is not exceeded
-            - Execute query to index  
-        """
+def check_request_restriction(user_id, response_headers, search_handler, query_string, entitlements):
+    """
+        - Get the number of requests of the user
+        - Check whether the request limit is exceeded
+        - Call Store request method if the limit is not exceeded
+        - Execute query to index  
+    """
     
-        amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+    amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
 
-        # If request limit is exceeded, user restriction is set to 0-level
-        if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-            request_limit_exceeded = True         
-            logger.debug('Request limit exceeded, set query restrictions to 0 level')
-            if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
-                response_headers['x-user-daily-request-limit-exceeded'] = '1'
-            if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-                response_headers['x-user-monthly-request-limit-exceeded'] = '1'      
+    # If request limit is exceeded, user restriction is set to 0-level
+    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+        request_limit_exceeded = True         
+        logger.debug('Request limit exceeded, set query restrictions to 0 level')
+        if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+            response_headers['x-user-daily-request-limit-exceeded'] = '1'
+        if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+            response_headers['x-user-monthly-request-limit-exceeded'] = '1'      
             
-            search_query, user_restriction_level = generate_query_restrictions(
-                user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
-            )
-            index_results = search_index(user_restriction_level, entitlements, search_query, method)
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
+        )
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-            return index_results, response_headers
+        return index_results, response_headers
 
-        else:
-            request_limit_exceeded = False
-            search_query, user_restriction_level = generate_query_restrictions(
-                user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
-            )
-            index_results = search_index(user_restriction_level, entitlements, search_query, method)
+    else:
+        request_limit_exceeded = False
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
+        )
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
 
-            if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
+        if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
 
-                for doc in index_results['response']['docs']:
-                    logger.debug('Checking document restriction level:')
-                    #logger.debug(pformat(doc))
-                    if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
-                        store_requests(user_id, search_query, user_restriction_level)
-                        amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+            for doc in index_results['response']['docs']:
+                logger.debug('Checking document restriction level:')
+                #logger.debug(pformat(doc))
+                if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+                    store_requests(user_id, search_query, user_restriction_level)
+                    amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
                         
-                        if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
-                            logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
-                            response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                            limit_type = EMAIL_SHORT_PERIOD
-                            check_sent_emails(user_id)
+                    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+                        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+                        response_headers['x-user-daily-request-limit-exceeded'] = '1'
+                        limit_type = EMAIL_SHORT_PERIOD
+                        check_sent_emails(user_id)
                 
-                            if cache.llen('email-notification:%s' % user_id) == 0:
-                                send_email_notification(user_id, limit_type)
+                        if cache.llen('email-notification:%s' % user_id) == 0:
+                            send_email_notification(user_id, limit_type)
 
-                        if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
-                            logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
-                            response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-                            limit_type = EMAIL_LONG_PERIOD
-                            check_sent_emails(user_id)
+                    if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+                        logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
+                        response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+                        limit_type = EMAIL_LONG_PERIOD
+                        check_sent_emails(user_id)
                 
-                            if cache.llen('email-notification:%s' % user_id) == 0:
-                                send_email_notification(user_id, limit_type)   
+                        if cache.llen('email-notification:%s' % user_id) == 0:
+                            send_email_notification(user_id, limit_type)   
 
-                return index_results, response_headers      
+            return index_results, response_headers      
                 
-            else:
+        else:
 
-                return index_results, response_headers 
+            return index_results, response_headers 
 
 
 @bp.route("/")
