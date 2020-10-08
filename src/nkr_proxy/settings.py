@@ -99,6 +99,8 @@ class Settings():
         'EMAIL_SHORT_PERIOD',
         'EMAIL_LONG_PERIOD',
         'LIMIT_FOR_SENDING_NEW_EMAIL',
+        'SHORT_TIMEFRAME',
+        'LONG_TIMEFRAME',
     )
 
     INDEX_HEADERS = {}
