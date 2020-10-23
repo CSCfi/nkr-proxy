@@ -201,8 +201,7 @@ def check_and_close_expired_sessions(session_max_age_seconds):
         # note: keys are encoded in unicode
         # logger.debug('Current raw key: %s' % str(key))
 
-        user_id = key.decode('utf-8').split('user-last-active:')[1]
-        last_active_ts = int(cache.get(key).decode('utf-8'))
+        user_id, last_active_ts = get_user_id_and_timestamp(key, 'user-last-active:')
 
         # logger.debug('Current user and ts: %s, %s' % (user_id, last_active_ts))
 
@@ -262,9 +261,8 @@ def check_and_close_expired_active_sessions(max_seconds_after_user_first_active)
     logger.info('Begin checking active expired sessions...')
     
     for key in cache.scan_iter('user-first-active:*'):   
-        
-        user_id = key.decode('utf-8').split('user-first-active:')[1]
-        user_first_active_ts = round(float(cache.get(key).decode('utf-8')))
+
+        user_id, user_first_active_ts = get_user_id_and_timestamp(key, 'user-first-active:')
 
         if round(time.time()) - user_first_active_ts >= int(max_seconds_after_user_first_active):
             
@@ -302,6 +300,12 @@ def check_and_close_expired_active_sessions(max_seconds_after_user_first_active)
 
                 stats.only_some_closed = True
 
+
+def get_user_id_and_timestamp(key, key_name):
+    user_id = key.decode('utf-8').split(key_name)[1]
+    activity_ts = int(cache.get(key).decode('utf-8'))
+
+    return user_id, activity_ts
 
 def main():
     try:
