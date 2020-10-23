@@ -266,7 +266,7 @@ def check_and_close_expired_active_sessions(max_seconds_after_user_first_active)
         user_id = key.decode('utf-8').split('user-first-active:')[1]
         user_first_active_ts = round(float(cache.get(key).decode('utf-8')))
 
-        if round(time.time()) - int(max_seconds_after_user_first_active) >= user_first_active_ts:
+        if round(time.time()) - user_first_active_ts >= int(max_seconds_after_user_first_active):
             
             application_states = close_rems_application(user_id, settings.REMS_CLOSE_ACTIVE_SESSION_MESSAGE)
 
