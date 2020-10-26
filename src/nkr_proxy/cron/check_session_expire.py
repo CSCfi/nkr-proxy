@@ -214,37 +214,7 @@ def check_and_close_expired_sessions(session_max_age_seconds):
 
             application_states = close_rems_application(user_id, settings.REMS_SESSION_CLOSE_MESSAGE)
 
-            if application_states is None:
-                logger.info('User %s had no relevant entitlements to close' % user_id)
-                cache.delete(key)
-                stats.n_close_missed += 1
-
-            elif all(app['closed'] is True for app in application_states):
-                cache.delete(key)
-                stats.n_applications_closed += len(application_states)
-                stats.n_users_close_success += 1
-                if len(application_states) > 1:
-                    stats.multiple_applications_closed = True
-
-            elif all(app['closed'] is False for app in application_states):
-                stats.n_close_failed += len(application_states)
-                stats.n_users_close_failed += 1
-                if len(application_states) > 1:
-                    stats.multiple_applications_close_failed = True
-
-            else:
-                logger.info(
-                    'Only some applications were closed for user %s: %s'
-                    % (user_id, str(application_states))
-                )
-
-                stats.n_applications_closed += len(app for app in application_states if app['closed'] is True)
-                stats.n_users_close_success += 1
-
-                stats.n_close_failed += len(app for app in application_states if app['closed'] is False)
-                stats.n_users_close_failed += 1
-
-                stats.only_some_closed = True
+            check_application_states(user_id, application_states, key, stats)
 
     stats.log_stats()
 
@@ -267,44 +237,46 @@ def check_and_close_expired_active_sessions(max_seconds_after_user_first_active)
             
             application_states = close_rems_application(user_id, settings.REMS_SESSION_CLOSE_MESSAGE_ACTIVE)
 
-            if application_states is None:
-                logger.info('Closing session - User %s had no relevant entitlements to close' % user_id)
-                cache.delete(key)
-                stats.n_close_missed += 1
-
-            elif all(app['closed'] is True for app in application_states):
-                cache.delete(key)
-                stats.n_applications_closed += len(application_states)
-                stats.n_users_close_success += 1
-                if len(application_states) > 1:
-                    stats.multiple_applications_closed = True
-
-            elif all(app['closed'] is False for app in application_states):
-                logger.info('Failed to close application(s)')
-                stats.n_close_failed += len(application_states)
-                stats.n_users_close_failed += 1
-                if len(application_states) > 1:
-                    stats.multiple_applications_close_failed = True
-            
-            else:
-                logger.info(
-                    'Closing session - some applications were closed for user %s: %s'
-                    % (user_id, str(application_states))
-                )
-                stats.n_applications_closed += len(app for app in application_states if app['closed'] is True)
-                stats.n_users_close_success += 1
-
-                stats.n_close_failed += len(app for app in application_states if app['closed'] is False)
-                stats.n_users_close_failed += 1
-
-                stats.only_some_closed = True
-
+            check_application_states(user_id, application_states, key, stats)
 
 def get_user_id_and_timestamp(key, key_name):
     user_id = key.decode('utf-8').split(key_name)[1]
     activity_ts = int(cache.get(key).decode('utf-8'))
 
     return user_id, activity_ts
+
+def check_application_states(user_id, application_states, key, stats):
+    if application_states is None:
+        logger.info('User %s had no relevant entitlements to close' % user_id)
+        cache.delete(key)
+        stats.n_close_missed += 1
+
+    elif all(app['closed'] is True for app in application_states):
+        cache.delete(key)
+        stats.n_applications_closed += len(application_states)
+        stats.n_users_close_success += 1
+        if len(application_states) > 1:
+            stats.multiple_applications_closed = True
+
+    elif all(app['closed'] is False for app in application_states):
+        stats.n_close_failed += len(application_states)
+        stats.n_users_close_failed += 1
+        if len(application_states) > 1:
+            stats.multiple_applications_close_failed = True
+
+    else:
+        logger.info(
+            'Only some applications were closed for user %s: %s'
+            % (user_id, str(application_states))
+        )
+
+        stats.n_applications_closed += len(app for app in application_states if app['closed'] is True)
+        stats.n_users_close_success += 1
+
+        stats.n_close_failed += len(app for app in application_states if app['closed'] is False)
+        stats.n_users_close_failed += 1
+
+        stats.only_some_closed = True
 
 def main():
     try:
