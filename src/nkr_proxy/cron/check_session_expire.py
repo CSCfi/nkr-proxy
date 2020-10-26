@@ -246,7 +246,6 @@ def check_and_close_expired_sessions(session_max_age_seconds):
 
                 stats.only_some_closed = True
 
-
     stats.log_stats()
 
     logger.info('---------------------------------------------------------------//')
@@ -266,7 +265,7 @@ def check_and_close_expired_active_sessions(max_seconds_after_user_first_active)
 
         if round(time.time()) - user_first_active_ts >= int(max_seconds_after_user_first_active):
             
-            application_states = close_rems_application(user_id, settings.REMS_CLOSE_ACTIVE_SESSION_MESSAGE)
+            application_states = close_rems_application(user_id, settings.REMS_SESSION_CLOSE_MESSAGE_ACTIVE)
 
             if application_states is None:
                 logger.info('Closing session - User %s had no relevant entitlements to close' % user_id)
@@ -313,7 +312,7 @@ def main():
         if cache.set('session_check_in_progress', 1, nx=True, ex=settings.SESSION_CLEANUP_MAX_TIME):
             # nx=True -> "get or set", only sets this value if did not exist yet
             check_and_close_expired_sessions(settings.SESSION_TIMEOUT_LIMIT)
-            check_and_close_expired_active_sessions(settings.SESSION_TIMEOUT_LONGER_LIMIT)
+            check_and_close_expired_active_sessions(settings.SESSION_TIMEOUT_LIMIT_LONG)
         else:
             logger.info(
                 'Session checking is already being executed by another process '
