@@ -242,20 +242,12 @@ def check_request_restriction(user_id, response_headers, search_handler, method,
                     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
                         logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
                         response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                        mail_message = MAIL_SHORT_PERIOD
-                        check_sent_emails(user_id)
-                
-                        if cache.llen('email-notification:%s' % user_id) == 0:
-                            send_email_notification(user_id, mail_message)
+                        check_sent_emails(user_id, MAIL_SHORT_PERIOD)
 
                     if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
                         logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
                         response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-                        mail_message = MAIL_LONG_PERIOD
-                        check_sent_emails(user_id)
-                
-                        if cache.llen('email-notification:%s' % user_id) == 0:
-                            send_email_notification(user_id, mail_message)   
+                        check_sent_emails(user_id, MAIL_LONG_PERIOD)  
 
             return index_results, response_headers      
                 
@@ -447,14 +439,17 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
     return resp_json
 
-def check_sent_emails(user_id):
+def check_sent_emails(user_id, mail_message):
     current_time = round(time())
-    start_from = current_time-int(MAIL_LIMIT_SECONDS)
+    start_from = current_time - int(MAIL_LIMIT_SECONDS)
     email_sending_times = cache.lrange('email-notification:%s' % user_id, 0, -1)
 
     for sending_time in email_sending_times:
         if float(sending_time) < start_from:
             cache.lrem('email-notification:%s' % user_id, 1, sending_time)
+
+    if cache.llen('email-notification:%s' % user_id) == 0:
+        send_email_notification(user_id, mail_message)
 
 
 def send_email_notification(user_id, mail_message):
