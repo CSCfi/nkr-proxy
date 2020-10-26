@@ -33,6 +33,8 @@ MAX_REQUESTS_SHORT_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_SHORT_PERIOD
 MAX_REQUESTS_LONG_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_LONG_PERIOD
 REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
+INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
+EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
 REQ_TIME_DIFF_LOWER = settings.REQ_TIME_DIFFERENCE_LOWER_BOUND
 MAIL_SERVER = settings.MAIL_SERVER
 MAIL_PORT = settings.MAIL_PORT
@@ -41,11 +43,9 @@ MAIL_USE_SSL = settings.MAIL_USE_SSL
 MAIL_DEFAULT_SENDER = settings.MAIL_DEFAULT_SENDER
 MAIL_MAX_EMAILS = settings.MAIL_MAX_EMAILS
 MAIL_RECIPIENT = settings.MAIL_RECIPIENT
-INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
-EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
-EMAIL_SHORT_PERIOD = settings.EMAIL_SHORT_PERIOD
-EMAIL_LONG_PERIOD = settings.EMAIL_LONG_PERIOD
-EMAIL_LIMIT_SECONDS = settings.LIMIT_FOR_SENDING_NEW_EMAIL
+MAIL_SHORT_PERIOD = settings.MAIL_SHORT_PERIOD
+MAIL_LONG_PERIOD = settings.MAIL_LONG_PERIOD
+MAIL_LIMIT_SECONDS = settings.LIMIT_FOR_SENDING_NEW_EMAIL
 
 bp = Blueprint('api', __name__)
 
@@ -242,20 +242,20 @@ def check_request_restriction(user_id, response_headers, search_handler, method,
                     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
                         logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
                         response_headers['x-user-daily-request-limit-exceeded'] = '1'
-                        limit_type = EMAIL_SHORT_PERIOD
+                        mail_message = MAIL_SHORT_PERIOD
                         check_sent_emails(user_id)
                 
                         if cache.llen('email-notification:%s' % user_id) == 0:
-                            send_email_notification(user_id, limit_type)
+                            send_email_notification(user_id, mail_message)
 
                     if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
                         logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
                         response_headers['x-user-monthly-request-limit-exceeded'] = '1'
-                        limit_type = EMAIL_LONG_PERIOD
+                        mail_message = MAIL_LONG_PERIOD
                         check_sent_emails(user_id)
                 
                         if cache.llen('email-notification:%s' % user_id) == 0:
-                            send_email_notification(user_id, limit_type)   
+                            send_email_notification(user_id, mail_message)   
 
             return index_results, response_headers      
                 
@@ -449,7 +449,7 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
 def check_sent_emails(user_id):
     current_time = round(time())
-    start_from = current_time-int(EMAIL_LIMIT_SECONDS)
+    start_from = current_time-int(MAIL_LIMIT_SECONDS)
     email_sending_times = cache.lrange('email-notification:%s' % user_id, 0, -1)
 
     for sending_time in email_sending_times:
@@ -457,9 +457,9 @@ def check_sent_emails(user_id):
             cache.lrem('email-notification:%s' % user_id, 1, sending_time)
 
 
-def send_email_notification(user_id, limit_type):
+def send_email_notification(user_id, mail_message):
     msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
-    msg.body = "%s hakuraja on ylittynyt" % limit_type
+    msg.body = "%s hakuraja on ylittynyt" % mail_message
     mail.send(msg)
     cache.rpush('email-notification:%s' % user_id, round(time()))
 
