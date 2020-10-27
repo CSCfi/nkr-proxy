@@ -35,7 +35,7 @@ REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
 INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
 EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
-REQ_TIME_DIFF_LOWER = settings.REQ_TIME_DIFFERENCE_LOWER_BOUND
+REQ_TIME_DIFF = settings.REQ_TIME_DIFFERENCE
 MAIL_SERVER = settings.MAIL_SERVER
 MAIL_PORT = settings.MAIL_PORT
 MAIL_USE_TLS = settings.MAIL_USE_TLS
@@ -308,7 +308,7 @@ def store_requests(user_id, search_query, user_restriction_level):
     elif cache.llen('all_requests_%s' % user_id) > 0:
         latest_timestamp = cache.rpop('all_requests_%s' % user_id)
         timestamp = latest_timestamp.decode('utf-8')
-        if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF_LOWER):
+        if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF):
             cache.rpush('all_requests_%s' % user_id, timestamp)
             cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
             logger.debug('Timestamp %s' % timestamp)
