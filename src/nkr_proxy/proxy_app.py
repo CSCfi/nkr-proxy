@@ -5,6 +5,7 @@ import logging
 from base64 import b64encode
 from random import shuffle
 from time import time
+from datetime import datetime
 
 from flask import Flask, g, Blueprint, jsonify, make_response, request
 import requests
@@ -24,6 +25,8 @@ LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
 ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIELD]
 VERIFY_TLS = settings.VERIFY_TLS
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+EPOCH = datetime(1970, 1, 1)
 
 
 bp = Blueprint('api', __name__)
@@ -109,6 +112,26 @@ def index_search(search_handler=None):
             # user has an active level 10 entitlemnt -> track user activity
             cache.set('user-last-active:%s' % user_id, round(time()))
             response_headers['x-user-access-status'] = 'ok'
+
+            # the time when user was first active is used for closing the session 
+            # regardless of whether user is currently active or inactive
+            user_first_active_ts = cache.get('user-first-active:%s' % user_id)
+            logger.debug('User first active: %s' % user_first_active_ts)
+            # if user_first_active_ts does not have a value yet, get applications and 
+            # set the timestamp of the first application as its value
+            if user_first_active_ts is None:
+                apps = rems.get_rems_user_applications(
+                    user_id,
+                    filter_resource=LEVEL_10_RESOURCE_ID
+                )
+
+                if apps:
+                    # get the latest application
+                    app = rems.get_rems_user_application(user_id, apps[0]['application/id'])
+                    date_submitted = app['application/first-submitted']
+                    epoch_time = (datetime.strptime(date_submitted, DATE_FORMAT) - EPOCH).total_seconds()
+                    cache.set('user-first-active:%s' % user_id, round(epoch_time))
+
         else:
             # check if user has a last-known-application, check its status,
             # and make that info available in the response
@@ -125,6 +148,10 @@ def index_search(search_handler=None):
                 close_info = rems.get_rems_application_close_info(app)
 
                 response_headers['x-user-access-status'] = close_info['custom_state']
+                logger.debug('Close info %s' % close_info['custom_state'])
+
+                if close_info['custom_state'] == 'active-session-expired-closed':
+                    response_headers['x-user-session-expired-closed'] = 'ok'
 
                 if 'comment' in close_info:
                     response_headers['x-user-access-status-comment'] = \

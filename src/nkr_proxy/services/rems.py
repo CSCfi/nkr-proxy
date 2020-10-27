@@ -184,6 +184,9 @@ def get_rems_application_close_info(application):
             if close_info['comment'] == settings.REMS_SESSION_CLOSE_MESSAGE:
                 close_info['custom_state'] = 'session-expired-closed'
 
+            elif close_info['comment'] == settings.REMS_SESSION_CLOSE_MESSAGE_ACTIVE:
+                close_info['custom_state'] = 'active-session-expired-closed'
+
             elif close_info['comment'] == settings.REMS_LOGOUT_MESSAGE:
                 close_info['custom_state'] = 'logout-closed'
 

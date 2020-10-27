@@ -101,10 +101,10 @@ class Stats():
 
 
 def user_is_active(last_active_ts, session_max_age_seconds):
-    return (round(time.time()) - int(last_active_ts)) < session_max_age_seconds
+    return (round(time.time()) - int(last_active_ts)) < int(session_max_age_seconds)
 
 
-def close_rems_application(user_id):
+def close_rems_application(user_id, close_message):
     logger.info('Retrieving and closing REMS application for user %s...' % user_id)
 
     ents = rems.get_rems_entitlements(user_id, full_entitlements=True)
@@ -128,7 +128,7 @@ def close_rems_application(user_id):
             application_closed = rems.close_rems_application(
                 user_id,
                 ent['application-id'],
-                settings.REMS_SESSION_CLOSE_MESSAGE,
+                close_message,
                 close_as_user=settings.REMS_SESSION_CLOSE_USER
             )
 
@@ -201,8 +201,7 @@ def check_and_close_expired_sessions(session_max_age_seconds):
         # note: keys are encoded in unicode
         # logger.debug('Current raw key: %s' % str(key))
 
-        user_id = key.decode('utf-8').split('user-last-active:')[1]
-        last_active_ts = int(cache.get(key).decode('utf-8'))
+        user_id, last_active_ts = get_user_id_and_timestamp(key, 'user-last-active:')
 
         # logger.debug('Current user and ts: %s, %s' % (user_id, last_active_ts))
 
@@ -213,44 +212,71 @@ def check_and_close_expired_sessions(session_max_age_seconds):
         else:
             logger.info('User %s is inactive' % user_id)
 
-            application_states = close_rems_application(user_id)
+            application_states = close_rems_application(user_id, settings.REMS_SESSION_CLOSE_MESSAGE)
 
-            if application_states is None:
-                logger.info('User %s had no relevant entitlements to close' % user_id)
-                cache.delete(key)
-                stats.n_close_missed += 1
-
-            elif all(app['closed'] is True for app in application_states):
-                cache.delete(key)
-                stats.n_applications_closed += len(application_states)
-                stats.n_users_close_success += 1
-                if len(application_states) > 1:
-                    stats.multiple_applications_closed = True
-
-            elif all(app['closed'] is False for app in application_states):
-                stats.n_close_failed += len(application_states)
-                stats.n_users_close_failed += 1
-                if len(application_states) > 1:
-                    stats.multiple_applications_close_failed = True
-
-            else:
-                logger.info(
-                    'Only some applications were closed for user %s: %s'
-                    % (user_id, str(application_states))
-                )
-
-                stats.n_applications_closed += len(app for app in application_states if app['closed'] is True)
-                stats.n_users_close_success += 1
-
-                stats.n_close_failed += len(app for app in application_states if app['closed'] is False)
-                stats.n_users_close_failed += 1
-
-                stats.only_some_closed = True
+            check_application_states(user_id, application_states, key, stats)
 
     stats.log_stats()
 
     logger.info('---------------------------------------------------------------//')
 
+
+def check_and_close_expired_active_sessions(max_seconds_after_user_first_active):
+    """
+    After maximum duration of REMS application it is closed regardless of user activity.
+    """
+
+    stats = Stats()
+    logger.info('Begin checking active expired sessions...')
+    
+    for key in cache.scan_iter('user-first-active:*'):   
+
+        user_id, user_first_active_ts = get_user_id_and_timestamp(key, 'user-first-active:')
+
+        if round(time.time()) - user_first_active_ts >= int(max_seconds_after_user_first_active):
+            
+            application_states = close_rems_application(user_id, settings.REMS_SESSION_CLOSE_MESSAGE_ACTIVE)
+
+            check_application_states(user_id, application_states, key, stats)
+
+def get_user_id_and_timestamp(key, key_name):
+    user_id = key.decode('utf-8').split(key_name)[1]
+    activity_ts = int(cache.get(key).decode('utf-8'))
+
+    return user_id, activity_ts
+
+def check_application_states(user_id, application_states, key, stats):
+    if application_states is None:
+        logger.info('User %s had no relevant entitlements to close' % user_id)
+        cache.delete(key)
+        stats.n_close_missed += 1
+
+    elif all(app['closed'] is True for app in application_states):
+        cache.delete(key)
+        stats.n_applications_closed += len(application_states)
+        stats.n_users_close_success += 1
+        if len(application_states) > 1:
+            stats.multiple_applications_closed = True
+
+    elif all(app['closed'] is False for app in application_states):
+        stats.n_close_failed += len(application_states)
+        stats.n_users_close_failed += 1
+        if len(application_states) > 1:
+            stats.multiple_applications_close_failed = True
+
+    else:
+        logger.info(
+            'Only some applications were closed for user %s: %s'
+            % (user_id, str(application_states))
+        )
+
+        stats.n_applications_closed += len(app for app in application_states if app['closed'] is True)
+        stats.n_users_close_success += 1
+
+        stats.n_close_failed += len(app for app in application_states if app['closed'] is False)
+        stats.n_users_close_failed += 1
+
+        stats.only_some_closed = True
 
 def main():
     try:
@@ -258,6 +284,7 @@ def main():
         if cache.set('session_check_in_progress', 1, nx=True, ex=settings.SESSION_CLEANUP_MAX_TIME):
             # nx=True -> "get or set", only sets this value if did not exist yet
             check_and_close_expired_sessions(settings.SESSION_TIMEOUT_LIMIT)
+            check_and_close_expired_active_sessions(settings.SESSION_TIMEOUT_LIMIT_LONG)
         else:
             logger.info(
                 'Session checking is already being executed by another process '
