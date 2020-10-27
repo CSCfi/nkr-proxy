@@ -88,8 +88,7 @@ def index_search(search_handler=None):
 
     - Get user entitlements
     - Augment search query according to entitlements
-    - Get index results: results with restriction level 0 if request limit is exceeded, 
-      otherwise the same level as the user entitlements
+    - Get index results: if request limit is exceeded, returns only results with restriction level 0, otherwise according to user's entitlements
     - Return results
     """
     logger.debug('Begin index_search')
@@ -300,25 +299,34 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
     return search_query, user_restriction_level
 
 def store_requests(user_id, search_query, user_restriction_level):
-    #cache.sadd('all_requests_test', str(round(time())))
-    # This could possibly be replaced by using SADD command
+    '''
+        - Store timestamp of the request to cache
+        - If there are multiple timestamps, comparison between the latest ts in cache and the timestamp to be added is made
+          in order to exclude duplicate timestamps.
+    '''
     timestamp_to_add = str(round(time()))
     if cache.llen('all_requests_%s' % user_id) == 0:
         cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
     elif cache.llen('all_requests_%s' % user_id) > 0:
         latest_timestamp = cache.rpop('all_requests_%s' % user_id)
         timestamp = latest_timestamp.decode('utf-8')
+        # if the latest ts is not the same as current ts (timestamp to be added) and the time difference is of certain length,
+        # push the latest timestamp back to cache and add the new timestamp there as well
         if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF):
             cache.rpush('all_requests_%s' % user_id, timestamp)
             cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
             logger.debug('Timestamp %s' % timestamp)
             logger.debug('Added new timestamp %s' % timestamp_to_add)
         else:
-            # push ts back to the list after having removed it with rpop when no new ts is added
+            # no new timestamp is added, push only the latest timestamp which was removed by rpop command back to cache
             cache.rpush('all_requests_%s' % user_id, timestamp)
             logger.debug('Timestamp %s' % timestamp)
 
 def count_requests(user_id):
+    '''
+        - Fetches user's request timestamps from cache and increments request counters if timestamp is within the sliding windows.
+        - Removes request timestamps that are older than the beginning of the long sliding window from cache.
+    '''
     current_time = round(time())
     short_time_frame_start = current_time-int(settings.SHORT_TIMEFRAME)
     long_time_frame_start = current_time-int(settings.LONG_TIMEFRAME)
@@ -326,7 +334,6 @@ def count_requests(user_id):
     request_count_short_period = 0
     request_count_long_period = 0
     requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
-    #requests_of_user = cache.smembers('all_requests_%s' % user_id)
 
     for req_timestamp in requests_of_user:
         if float(req_timestamp) <= current_time:
@@ -338,7 +345,6 @@ def count_requests(user_id):
                 request_count_long_period += 1
             if float(req_timestamp) < long_time_frame_start:
                 cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
-                #cache.srem('all_requests_%s' % user_id, req_timestamp)
     logger.debug('From %s to %s' % (short_time_frame_start, current_time))
     logger.debug('Requests %s' % request_count_short_period)
     logger.debug('Requests of longer period %s' % request_count_long_period)
