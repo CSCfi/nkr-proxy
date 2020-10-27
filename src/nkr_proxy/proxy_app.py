@@ -328,8 +328,8 @@ def count_requests(user_id):
         - Removes request timestamps that are older than the beginning of the long sliding window from cache.
     '''
     current_time = round(time())
-    short_time_frame_start = current_time-int(settings.SHORT_TIMEFRAME)
-    long_time_frame_start = current_time-int(settings.LONG_TIMEFRAME)
+    short_time_frame_start = current_time - int(settings.SHORT_TIMEFRAME)
+    long_time_frame_start = current_time - int(settings.LONG_TIMEFRAME)
     requests_of_user = []
     request_count_short_period = 0
     request_count_long_period = 0
