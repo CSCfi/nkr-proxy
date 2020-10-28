@@ -35,7 +35,7 @@ REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
 REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
 INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
 EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
-REQ_TIME_DIFF = settings.REQ_TIME_DIFFERENCE
+REQ_TIME_DIFFERENCE = settings.REQUEST_TIME_DIFFERENCE
 MAIL_SERVER = settings.MAIL_SERVER
 MAIL_PORT = settings.MAIL_PORT
 MAIL_USE_TLS = settings.MAIL_USE_TLS
@@ -312,7 +312,7 @@ def store_requests(user_id, search_query, user_restriction_level):
         timestamp = latest_timestamp.decode('utf-8')
         # if the latest ts is not the same as current ts (timestamp to be added) and the time difference is of certain length,
         # push the latest timestamp back to cache and add the new timestamp there as well
-        if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFF):
+        if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFFERENCE):
             cache.rpush('all_requests_%s' % user_id, timestamp)
             cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
             logger.debug('Timestamp %s' % timestamp)
