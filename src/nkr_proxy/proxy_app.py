@@ -235,7 +235,7 @@ def check_restrictions_and_search(user_id, response_headers, search_handler, met
                 logger.debug('Checking document restriction level:')
                 #logger.debug(pformat(doc))
                 if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
-                    store_requests(user_id, search_query, user_restriction_level)
+                    store_request_timestamp(user_id, user_restriction_level)
                     amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
                         
                     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
@@ -298,7 +298,7 @@ def generate_query_restrictions(user_id, original_query, entitlements, request_l
     logger.debug('Adding user_restriction_level: %r' % user_restriction_level)
     return search_query, user_restriction_level
 
-def store_requests(user_id, search_query, user_restriction_level):
+def store_request_timestamp(user_id, user_restriction_level):
     '''
         - Store timestamp of the request to cache
         - If there are multiple timestamps, comparison between the latest ts in cache and the timestamp to be added is made
