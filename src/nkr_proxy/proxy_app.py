@@ -209,10 +209,11 @@ def check_restrictions_and_search(user_id, response_headers, search_handler, met
     # If request limit is exceeded, user restriction is set to 0-level
     if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
         request_limit_exceeded = True         
-        logger.debug('Request limit exceeded, set query restrictions to 0 level')
         if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+            logger.info('Request limit of short period exceeded, set query restriction to 0 level. User: %s' % user_id)
             response_headers['x-user-daily-request-limit-exceeded'] = '1'
         if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+            logger.info('Request limit of long period exceeded, set query restriction to 0 level. User: %s' % user_id)
             response_headers['x-user-monthly-request-limit-exceeded'] = '1'      
             
         search_query, user_restriction_level = generate_query_restrictions(
@@ -346,8 +347,8 @@ def count_requests(user_id):
             if float(req_timestamp) < long_time_frame_start:
                 cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
     logger.debug('From %s to %s' % (short_time_frame_start, current_time))
-    logger.debug('Requests %s' % request_count_short_period)
-    logger.debug('Requests of longer period %s' % request_count_long_period)
+    logger.debug('Number of requests in short period: %s' % request_count_short_period)
+    logger.debug('Number of requests in long period: %s' % request_count_long_period)
     return request_count_short_period, request_count_long_period
 
 def search_index(user_restriction_level, entitlements, search_query, method):
