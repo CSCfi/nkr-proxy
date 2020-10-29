@@ -461,7 +461,7 @@ def check_sent_emails(user_id, mail_message):
 
 def send_email_notification(user_id, mail_message):
     msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
-    msg.body = "%s hakuraja on ylittynyt. Käyttäjätunniste: %s" % mail_message, user_id
+    msg.body = "%s hakuraja on ylittynyt. Käyttäjätunniste: %s" % (mail_message, user_id)
     mail.send(msg)
     cache.rpush('email-notification:%s' % user_id, round(time()))
 
