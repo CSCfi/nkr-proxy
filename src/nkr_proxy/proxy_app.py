@@ -2,12 +2,14 @@
 # SPDX-License-Identifier: MIT
 
 import logging
+from pprint import pprint, pformat
 from base64 import b64encode
 from random import shuffle
 from time import time
 from datetime import datetime
 
 from flask import Flask, g, Blueprint, jsonify, make_response, request
+from flask_mail import Mail, Message
 import requests
 import werkzeug
 
@@ -20,14 +22,30 @@ from nkr_proxy.services import rems
 
 logger = logging.getLogger(__name__)
 
+DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
+EPOCH = datetime(1970, 1, 1)
 LEVEL_10_RESOURCE_ID = settings.METADATA_LEVEL_10_RESOURCE_ID
 LEVEL_RESTRICTION_FIELD = settings.LEVEL_RESTRICTION_FIELD
 DOCUMENT_UNIQUE_ID_FIELD = settings.DOCUMENT_UNIQUE_ID_FIELD
 ADDITIONAL_INDEX_QUERY_FIELDS = [DOCUMENT_UNIQUE_ID_FIELD, LEVEL_RESTRICTION_FIELD]
 VERIFY_TLS = settings.VERIFY_TLS
-DATE_FORMAT = '%Y-%m-%dT%H:%M:%S.%fZ'
-EPOCH = datetime(1970, 1, 1)
-
+MAX_REQUESTS_SHORT_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_SHORT_PERIOD
+MAX_REQUESTS_LONG_PERIOD = settings.MAX_AMOUNT_OF_REQUESTS_LONG_PERIOD
+REQ_EXCLUSION_CRITERIA = settings.EXCLUDE_REQUESTS_WITH_FIELD_PARAM
+REQ_INCLUSION_CRITERIA = settings.INCLUDE_REQUESTS_WITH_FIELD_PARAM
+INCLUDE_REQ = settings.INCLUDE_REQUESTS_WITH_QUERY_PARAM
+EXCLUDE_REQ = settings.EXCLUDE_REQUESTS_WITH_QUERY_PARAM
+REQ_TIME_DIFFERENCE = settings.REQUEST_TIME_DIFFERENCE
+MAIL_SERVER = settings.MAIL_SERVER
+MAIL_PORT = settings.MAIL_PORT
+MAIL_USE_TLS = settings.MAIL_USE_TLS
+MAIL_USE_SSL = settings.MAIL_USE_SSL
+MAIL_DEFAULT_SENDER = settings.MAIL_DEFAULT_SENDER
+MAIL_MAX_EMAILS = settings.MAIL_MAX_EMAILS
+MAIL_RECIPIENT = settings.MAIL_RECIPIENT
+MAIL_SHORT_PERIOD = settings.MAIL_SHORT_PERIOD
+MAIL_LONG_PERIOD = settings.MAIL_LONG_PERIOD
+MAIL_LIMIT_SECONDS = settings.LIMIT_FOR_SENDING_NEW_EMAIL
 
 bp = Blueprint('api', __name__)
 
@@ -70,7 +88,7 @@ def index_search(search_handler=None):
 
     - Get user entitlements
     - Augment search query according to entitlements
-    - Execute query to index
+    - Get index results: if request limit is exceeded, returns only results with restriction level 0, otherwise according to user's entitlements
     - Return results
     """
     logger.debug('Begin index_search')
@@ -168,18 +186,74 @@ def index_search(search_handler=None):
             if blacklisted.get('blacklisted'):
                 response_headers['x-user-blacklisted'] = blacklisted.get('date', '-')
 
-    search_query, user_restriction_level = generate_query_restrictions(
-        user_id, '%s?%s' % (search_handler, query_string), entitlements
-    )
-
-    index_results = search_index(user_restriction_level, entitlements, search_query, method)
+    index_results, response_headers = check_restrictions_and_search(user_id, response_headers, search_handler, method, query_string, entitlements)
 
     response = make_response(jsonify(index_results), 200)
 
     for h, v in response_headers.items():
         response.headers[h] = v
-
+    
     return response
+    
+    
+def check_restrictions_and_search(user_id, response_headers, search_handler, method, query_string, entitlements):
+    """
+        - Get the number of requests of the user
+        - Check whether the request limit is exceeded
+        - Call Store request method if the limit is not exceeded
+        - Execute query to index  
+    """
+    
+    amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+
+    # If request limit is exceeded, user restriction is set to 0-level
+    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD) or amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+        request_limit_exceeded = True         
+        if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+            logger.info('Request limit of short period exceeded, set query restriction to 0 level. User: %s' % user_id)
+            response_headers['x-user-daily-request-limit-exceeded'] = '1'
+        if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+            logger.info('Request limit of long period exceeded, set query restriction to 0 level. User: %s' % user_id)
+            response_headers['x-user-monthly-request-limit-exceeded'] = '1'      
+            
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
+        )
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
+
+        return index_results, response_headers
+
+    else:
+        request_limit_exceeded = False
+        search_query, user_restriction_level = generate_query_restrictions(
+            user_id, '%s?%s' % (search_handler, query_string), entitlements, request_limit_exceeded
+        )
+        index_results = search_index(user_restriction_level, entitlements, search_query, method)
+
+        if (INCLUDE_REQ and REQ_INCLUSION_CRITERIA in query_string) and (EXCLUDE_REQ not in query_string or REQ_EXCLUSION_CRITERIA not in query_string):
+
+            for doc in index_results['response']['docs']:
+                logger.debug('Checking document restriction level:')
+                #logger.debug(pformat(doc))
+                if user_restriction_level != '00' and doc[LEVEL_RESTRICTION_FIELD] == user_restriction_level:
+                    store_request_timestamp(user_id, user_restriction_level)
+                    amount_of_requests_short_period, amount_of_requests_long_period = count_requests(user_id)
+                        
+                    if amount_of_requests_short_period >= int(MAX_REQUESTS_SHORT_PERIOD):
+                        logger.debug('max amount of requests exceeded %s' % amount_of_requests_short_period)
+                        response_headers['x-user-daily-request-limit-exceeded'] = '1'
+                        check_sent_emails(user_id, MAIL_SHORT_PERIOD)
+
+                    if amount_of_requests_long_period >= int(MAX_REQUESTS_LONG_PERIOD):
+                        logger.debug('Max amount of requests of longer period %s' % amount_of_requests_long_period)
+                        response_headers['x-user-monthly-request-limit-exceeded'] = '1'
+                        check_sent_emails(user_id, MAIL_LONG_PERIOD)  
+
+            return index_results, response_headers      
+                
+        else:
+
+            return index_results, response_headers 
 
 
 @bp.route("/")
@@ -188,7 +262,7 @@ def hello():
     return "<h1 style='color:blue'>Hello There!</h1>"
 
 
-def generate_query_restrictions(user_id, original_query, entitlements):
+def generate_query_restrictions(user_id, original_query, entitlements, request_limit_exceeded):
     """
     Generate a query to augment the original query to index, to only target
     particular permitted documents according to entitlements. Additionally,
@@ -200,7 +274,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     user_restriction_level = '00'
 
     for ent in entitlements:
-        if ent == LEVEL_10_RESOURCE_ID:
+        if ent == LEVEL_10_RESOURCE_ID and request_limit_exceeded == False:
             # level 10 access only
             logger.debug('Found level 10 entitlement: %s' % ent)
             logger.info('User %s has level 10 access' % user_id)
@@ -208,7 +282,7 @@ def generate_query_restrictions(user_id, original_query, entitlements):
             user_restriction_level = '10'
             break
     else:
-        # open metadata access only
+        # open metadata access only if user not logged in or request limit is exceeded
         logger.debug('No level 10 entitlements found. Adding filter for level 0')
         logger.info('User %s has no entitlements' % user_id)
         permission_query = 'fq=+filter(%s:00)' % LEVEL_RESTRICTION_FIELD
@@ -225,6 +299,57 @@ def generate_query_restrictions(user_id, original_query, entitlements):
     logger.debug('Adding user_restriction_level: %r' % user_restriction_level)
     return search_query, user_restriction_level
 
+def store_request_timestamp(user_id, user_restriction_level):
+    '''
+        - Store timestamp of the request to cache
+        - If there are multiple timestamps, comparison between the latest ts in cache and the timestamp to be added is made
+          in order to exclude duplicate timestamps.
+    '''
+    timestamp_to_add = str(round(time()))
+    if cache.llen('all_requests_%s' % user_id) == 0:
+        cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+    elif cache.llen('all_requests_%s' % user_id) > 0:
+        latest_timestamp = cache.rpop('all_requests_%s' % user_id)
+        timestamp = latest_timestamp.decode('utf-8')
+        # if the latest ts is not the same as current ts (timestamp to be added) and the time difference is of certain length,
+        # push the latest timestamp back to cache and add the new timestamp there as well
+        if timestamp != timestamp_to_add and float(timestamp_to_add) - float(timestamp) >= float(REQ_TIME_DIFFERENCE):
+            cache.rpush('all_requests_%s' % user_id, timestamp)
+            cache.rpush('all_requests_%s' % user_id, timestamp_to_add)
+            logger.debug('Timestamp %s' % timestamp)
+            logger.debug('Added new timestamp %s' % timestamp_to_add)
+        else:
+            # no new timestamp is added, push only the latest timestamp which was removed by rpop command back to cache
+            cache.rpush('all_requests_%s' % user_id, timestamp)
+            logger.debug('Timestamp %s' % timestamp)
+
+def count_requests(user_id):
+    '''
+        - Fetches user's request timestamps from cache and increments request counters if timestamp is within the sliding windows.
+        - Removes request timestamps that are older than the beginning of the long sliding window from cache.
+    '''
+    current_time = round(time())
+    short_time_frame_start = current_time - int(settings.SHORT_TIMEFRAME)
+    long_time_frame_start = current_time - int(settings.LONG_TIMEFRAME)
+    requests_of_user = []
+    request_count_short_period = 0
+    request_count_long_period = 0
+    requests_of_user = cache.lrange('all_requests_%s' % user_id, 0, -1)
+
+    for req_timestamp in requests_of_user:
+        if float(req_timestamp) <= current_time:
+            if float(req_timestamp) >= short_time_frame_start:
+                logger.debug('Request timestamp %s' % req_timestamp)
+                request_count_short_period += 1
+                request_count_long_period += 1
+            if float(req_timestamp) >= long_time_frame_start and float(req_timestamp) < short_time_frame_start:
+                request_count_long_period += 1
+            if float(req_timestamp) < long_time_frame_start:
+                cache.lrem('all_requests_%s' % user_id, 1, req_timestamp)
+    logger.debug('From %s to %s' % (short_time_frame_start, current_time))
+    logger.debug('Number of requests in short period: %s' % request_count_short_period)
+    logger.debug('Number of requests in long period: %s' % request_count_long_period)
+    return request_count_short_period, request_count_long_period
 
 def search_index(user_restriction_level, entitlements, search_query, method):
     """
@@ -321,6 +446,25 @@ def search_index(user_restriction_level, entitlements, search_query, method):
 
     return resp_json
 
+def check_sent_emails(user_id, mail_message):
+    current_time = round(time())
+    start_from = current_time - int(MAIL_LIMIT_SECONDS)
+    email_sending_times = cache.lrange('email-notification:%s' % user_id, 0, -1)
+
+    for sending_time in email_sending_times:
+        if float(sending_time) < start_from:
+            cache.lrem('email-notification:%s' % user_id, 1, sending_time)
+
+    if cache.llen('email-notification:%s' % user_id) == 0:
+        send_email_notification(user_id, mail_message)
+
+
+def send_email_notification(user_id, mail_message):
+    msg = Message("Hakuraja ylittynyt", sender=MAIL_DEFAULT_SENDER, recipients=[MAIL_RECIPIENT])
+    msg.body = "%s hakuraja on ylittynyt. Käyttäjätunniste: %s" % (mail_message, user_id)
+    mail.send(msg)
+    cache.rpush('email-notification:%s' % user_id, round(time()))
+
 
 def before_request():
     g.request_start_time = time()
@@ -351,6 +495,7 @@ bp.after_request(after_request)
 bp.before_request(before_request)
 
 app = Flask(__name__)
+mail = Mail(app)
 app.register_blueprint(bp)
 
 
