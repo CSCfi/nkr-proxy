@@ -1,4 +1,4 @@
-Flask==1.1.1 # BSD-3
+Flask==2.3.2 # BSD-3
 Flask-Mail==0.9.1 # BSD
 gunicorn==19.9.0 # MIT
 redis==3.3.11 # MIT
